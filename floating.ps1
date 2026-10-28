@@ -34,7 +34,15 @@ try {
   $choices=@(@('森林绿','#263F35'),@('海洋蓝','#315C87'),@('薰衣草','#76639B'),@('暖珊瑚','#C46B5E'),@('奶油白','#F3EBDD'),@('炭黑','#30343A'))
   foreach($choice in $choices){$item=New-Object System.Windows.Forms.ToolStripMenuItem($choice[0]);$item.Tag=$choice[1];$item.Add_Click({param($sender,$e) & $script:setSkin ([System.Drawing.ColorTranslator]::FromHtml([string]$sender.Tag))});[void]$skinMenu.DropDownItems.Add($item)}
   $custom=New-Object System.Windows.Forms.ToolStripMenuItem('自定义颜色…');$custom.Add_Click({$dialog=New-Object System.Windows.Forms.ColorDialog;$dialog.FullOpen=$true;$dialog.Color=$form.BackColor;if($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){& $script:setSkin $dialog.Color};$dialog.Dispose()});[void]$skinMenu.DropDownItems.Add($custom);[void]$menu.Items.Add($skinMenu)
-  [void]$menu.Items.Add('退出',$null,[System.EventHandler]{$form.Close()});$form.ContextMenuStrip=$menu
+  [void]$menu.Items.Add('退出笔记本（关闭所有进程）',$null,[System.EventHandler]{
+    $probe=New-Object System.Net.Sockets.TcpClient
+    try{$probe.Connect('127.0.0.1',17683);$serverRunning=$true}catch{$serverRunning=$false}finally{$probe.Dispose()}
+    if($serverRunning){
+      try{$session=Get-Content -LiteralPath (Join-Path $PSScriptRoot '.notebook-session.json') -Raw -Encoding UTF8 | ConvertFrom-Json;if($session.key -notmatch '^[0-9a-f]{64}$'){throw '无法确认笔记本进程'};$reply=Invoke-RestMethod -Uri 'http://127.0.0.1:17683/shutdown' -Method Post -Headers @{'X-Notebook-Shutdown'=$session.key} -TimeoutSec 5;if(-not $reply.ok){throw '关闭失败'}}
+      catch{[void][System.Windows.Forms.MessageBox]::Show('无法关闭笔记本窗口和后台进程。请先关闭笔记本窗口，再退出浮动球。','退出失败');return}
+    }
+    $form.Close()
+  });$form.ContextMenuStrip=$menu
   $form.Add_MouseDown({param($s,$e) if($e.Button -eq [System.Windows.Forms.MouseButtons]::Left){$script:dragging=$true;$script:moved=$false;$script:mouseStart=[System.Windows.Forms.Cursor]::Position;$script:formStart=$form.Location;$form.Capture=$true}})
   $form.Add_MouseMove({param($s,$e) if($script:dragging){$cur=[System.Windows.Forms.Cursor]::Position;$dx=$cur.X-$script:mouseStart.X;$dy=$cur.Y-$script:mouseStart.Y;if([Math]::Abs($dx)+[Math]::Abs($dy) -gt 3){$script:moved=$true;$script:dock='none'};if($script:moved){$form.Location=New-Object System.Drawing.Point(($script:formStart.X+$dx),($script:formStart.Y+$dy))}}})
   $form.Add_MouseUp({param($s,$e) if($e.Button -ne [System.Windows.Forms.MouseButtons]::Left){return};$script:dragging=$false;$form.Capture=$false;if(-not $script:moved){& $script:openNotebook;return};$screen=[System.Windows.Forms.Screen]::FromPoint([System.Windows.Forms.Cursor]::Position).WorkingArea;$left=[Math]::Abs($form.Left-$screen.Left);$right=[Math]::Abs($screen.Right-$form.Right);if([Math]::Min($left,$right) -le 45){if($left -le $right){$script:dock='left';$form.Left=$screen.Left}else{$script:dock='right';$form.Left=$screen.Right-$form.Width};$form.Top=[Math]::Max($screen.Top,[Math]::Min($form.Top,$screen.Bottom-$form.Height));$script:expanded=$true}else{$script:dock='none'}})
