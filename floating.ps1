@@ -11,7 +11,7 @@ try {
   $bounds=[System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
   $form.Location=New-Object System.Drawing.Point(($bounds.Right-54),($bounds.Top+[int]($bounds.Height/2)-27))
   $script:dock='right'; $script:dragging=$false; $script:moved=$false; $script:expanded=$true
-  $form.Add_Paint({param($sender,$e) $font=New-Object System.Drawing.Font('Segoe UI',19);$sf=New-Object System.Drawing.StringFormat;$sf.Alignment='Center';$sf.LineAlignment='Center';$e.Graphics.DrawString([string][char]0x270E,$font,[System.Drawing.Brushes]::White,$sender.ClientRectangle,$sf);$font.Dispose();$sf.Dispose()})
+  $form.Add_Paint({param($sender,$e) $font=New-Object System.Drawing.Font('Segoe UI',19);$sf=New-Object System.Drawing.StringFormat;$sf.Alignment='Center';$sf.LineAlignment='Center';$rect=New-Object System.Drawing.RectangleF(0,0,[single]$sender.ClientSize.Width,[single]$sender.ClientSize.Height);$e.Graphics.DrawString([string][char]0x270E,$font,[System.Drawing.Brushes]::White,$rect,$sf);$font.Dispose();$sf.Dispose()})
   $script:openNotebook={
     $client=New-Object System.Net.Sockets.TcpClient
     try {$client.Connect('127.0.0.1',17683);$running=$true} catch {$running=$false} finally {$client.Dispose()}
