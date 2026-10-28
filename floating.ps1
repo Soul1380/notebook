@@ -17,7 +17,8 @@ try {
     try {$client.Connect('127.0.0.1',17683);$running=$true} catch {$running=$false} finally {$client.Dispose()}
     if (-not $running) {$node=Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe';if(!(Test-Path $node)){$node='node.exe'};Start-Process -FilePath $node -ArgumentList ('"'+(Join-Path $PSScriptRoot 'desktop.cjs')+'"') -WindowStyle Hidden}
     $scriptPath=Join-Path $PSScriptRoot 'window.ps1'
-    $args='-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "'+$scriptPath+'" animate false '+($form.Left+27)+' '+($form.Top+27)
+    $windowAction=if($running){'restore'}else{'animate'}
+    $args='-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "'+$scriptPath+'" '+$windowAction+' false '+($form.Left+27)+' '+($form.Top+27)
     Start-Process powershell.exe -ArgumentList $args -WindowStyle Hidden
   }
   $menu=New-Object System.Windows.Forms.ContextMenuStrip
