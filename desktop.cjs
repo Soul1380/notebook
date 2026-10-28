@@ -19,9 +19,10 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'application/json'});res.end(JSON.stringify({ok:!err,pinned,error:err?(stderr||err.message):undefined}));
   });
 });
-server.listen(0, '127.0.0.1', () => {
+server.listen(17683, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${server.address().port}/?token=${token}`;
   const browser = spawn(edge, [`--app=${url}`, '--new-window', `--user-data-dir=${path.join(__dirname,'.browser-data')}`], {detached:false, stdio:'ignore'});
   browser.on('error', err => {console.error('无法启动 Edge:',err.message);server.close()});
   browser.on('exit', () => server.close());
 });
+
