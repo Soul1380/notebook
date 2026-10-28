@@ -15,6 +15,12 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'text/javascript; charset=utf-8', 'Cache-Control':'no-store'});
     fs.createReadStream(path.join(__dirname,'app.js')).pipe(res); return;
   }
+  if (req.url === '/tasks' || req.url === '/tasks/activate') {
+    const activate=req.url.endsWith('/activate');
+    if(req.headers['x-notebook-token']!==token || (activate && (req.method!=='POST'||req.headers.origin!==`http://127.0.0.1:${server.address().port}`)) || (!activate && req.method!=='GET')){res.writeHead(403);res.end();return;}
+    function run(id){const args=['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'tasks.ps1'),activate?'activate':'list'];if(activate)args.push(id);execFile('powershell.exe',args,{windowsHide:true,timeout:12000,maxBuffer:4*1024*1024,encoding:'utf8'},(err,stdout)=>{if(err){res.writeHead(500);res.end();return}try{const data=JSON.parse(stdout);res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data))}catch(e){res.writeHead(500);res.end()}})}
+    if(!activate){run();return}let body='';req.on('data',chunk=>{body+=chunk;if(body.length>1024)req.destroy()});req.on('end',()=>{try{const data=JSON.parse(body);if(typeof data.id!=='string'||!/^\d{1,18}$/.test(data.id))throw Error();run(data.id)}catch(e){res.writeHead(400);res.end()}});return;
+  }
   const quick = /^\/quick\/(baidu|chatgpt)$/.exec(req.url);
   if (quick) {
     if (req.method !== 'POST' || req.headers['x-notebook-token'] !== token || req.headers.origin !== `http://127.0.0.1:${server.address().port}`) { res.writeHead(403);res.end();return; }
