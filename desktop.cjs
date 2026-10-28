@@ -11,6 +11,10 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'});
     fs.createReadStream(path.join(__dirname,'index.html')).pipe(res); return;
   }
+  if (req.method === 'GET' && req.url === '/app.js') {
+    res.writeHead(200, {'Content-Type':'text/javascript; charset=utf-8', 'Cache-Control':'no-store'});
+    fs.createReadStream(path.join(__dirname,'app.js')).pipe(res); return;
+  }
   const match = /^\/window\/(minimize|maximize|pin)$/.exec(req.url);
   if (req.method !== 'POST' || !match || req.headers['x-notebook-token'] !== token || req.headers.origin !== `http://127.0.0.1:${server.address().port}`) {res.writeHead(403);res.end();return;}
   const nextPin = !pinned;
@@ -25,4 +29,5 @@ server.listen(17683, '127.0.0.1', () => {
   browser.on('error', err => {console.error('无法启动 Edge:',err.message);server.close()});
   browser.on('exit', () => server.close());
 });
+
 
