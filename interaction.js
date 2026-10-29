@@ -23,4 +23,41 @@ window.addEventListener('pointerup',e=>{if(!radialGesture||e.pointerId!==radialG
 
 renderAnnotations();
 
-const updateStatus=document.querySelector('#updateStatus'),installUpdate=document.querySelector('#installUpdate');let updatePoll=null;async function updateRequest(endpoint,method='GET'){if(location.protocol==='file:')return {phase:'unavailable',message:'请在安装版中使用'};const r=await fetch('/updates'+endpoint,{method,headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});if(!r.ok)throw Error('无法连接更新服务');return r.json()}function displayUpdate(data){updateStatus.textContent=data.message||'检查失败';installUpdate.hidden=data.phase!=='ready';if(['checking','downloading'].includes(data.phase)){if(!updatePoll)updatePoll=setInterval(refreshUpdate,2000)}else if(updatePoll){clearInterval(updatePoll);updatePoll=null}}async function refreshUpdate(){try{displayUpdate(await updateRequest(''))}catch(e){displayUpdate({phase:'error',message:'更新服务不可用'})}}async function checkUpdate(){updateStatus.textContent='正在检查更新…';try{displayUpdate(await updateRequest('/check','POST'))}catch(e){displayUpdate({phase:'error',message:'更新服务不可用'})}}document.querySelector('#checkUpdate').onclick=()=>{document.querySelector('#prefs').click();document.querySelector('#settingsUI').click();checkUpdate()};document.querySelector('#settingsCheckUpdate').onclick=checkUpdate;installUpdate.onclick=async()=>{if(!confirm('安装更新会关闭并重启笔记本。请先保存当前工程，确定继续吗？'))return;installUpdate.disabled=true;try{const data=await updateRequest('/install','POST');updateStatus.textContent=data.message||'正在安装更新并重启'}catch(e){updateStatus.textContent='无法安装更新';installUpdate.disabled=false}};refreshUpdate();
+const updateStatus=document.querySelector('#updateStatus'),installUpdate=document.querySelector('#installUpdate');
+let updateInstalling=false,updateAttempted=false,lastUpdateActivity=Date.now();
+for(const event of ['pointerdown','pointermove','keydown','input'])document.addEventListener(event,()=>{lastUpdateActivity=Date.now()},{passive:true});
+async function updateRequest(endpoint,method='GET'){
+  if(location.protocol==='file:')return {phase:'unavailable',message:'请在安装版中使用'};
+  const r=await fetch('/updates'+endpoint,{method,headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});
+  const data=await r.json();if(!r.ok)throw Error(data.message||'无法连接更新服务');return data;
+}
+async function installReadyUpdate(){
+  if(updateInstalling||action||editor||document.querySelector('.annotation-name'))return;
+  updateInstalling=true;updateAttempted=true;installUpdate.disabled=true;
+  try{
+    // A dedicated snapshot must succeed before the backend is allowed to close the window.
+    localStorage.setItem('notebook-update-session-v1',JSON.stringify({strokes,objects,view}));
+    document.body.inert=true;
+    const data=await updateRequest('/install','POST');updateStatus.textContent=data.message;
+  }catch(e){
+    document.body.inert=false;updateInstalling=false;installUpdate.disabled=false;
+    updateStatus.textContent='自动更新暂停：'+e.message+'。请保存工程后重试。';
+  }
+}
+function displayUpdate(data){
+  if(updateInstalling)return;
+  const current=data.currentVersion?'当前版本 '+data.currentVersion+' · ':'';
+  updateStatus.textContent=current+(data.message||'检查失败');installUpdate.hidden=data.phase!=='ready';
+  if(data.phase==='ready'){
+    updateStatus.textContent=current+(updateAttempted?'自动更新暂停，请保存工程后点击安装重试':'新版本 '+data.version+' 已就绪，停止操作 10 秒后自动保存画布并更新');
+    if(!updateAttempted&&Date.now()-lastUpdateActivity>=10000)installReadyUpdate();
+  }
+}
+async function refreshUpdate(){try{displayUpdate(await updateRequest(''))}catch(e){if(!updateInstalling)updateStatus.textContent='更新服务不可用，将自动重试'}}
+async function checkUpdate(){updateStatus.textContent='正在检查更新…';try{displayUpdate(await updateRequest('/check','POST'))}catch(e){updateStatus.textContent=e.message}}
+document.querySelector('#checkUpdate').onclick=()=>{document.querySelector('#prefs').click();document.querySelector('#settingsUI').click();checkUpdate()};
+document.querySelector('#settingsCheckUpdate').onclick=checkUpdate;
+installUpdate.onclick=()=>{if(editor)finishText();installReadyUpdate()};
+// The app has loaded successfully; normal launches should retain their blank-canvas behavior.
+localStorage.removeItem('notebook-update-session-v1');
+if(location.protocol!=='file:'){setInterval(refreshUpdate,2000);refreshUpdate()}else displayUpdate({message:'请在安装版中使用自动更新'});

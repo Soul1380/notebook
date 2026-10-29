@@ -10,6 +10,7 @@ let browser;
 let installingUpdate=false;
 const updater=require('./updater.cjs').createUpdater(__dirname);
 updater.check().catch(()=>{});
+setInterval(()=>{if(!installingUpdate)updater.check().catch(()=>{});},30*60*1000).unref();
 const edge = [process.env['PROGRAMFILES(X86)'],process.env.PROGRAMFILES,process.env.LOCALAPPDATA].filter(Boolean).map(root=>path.join(root,'Microsoft','Edge','Application','msedge.exe')).find(fs.existsSync)||'msedge.exe';
 let pinned = false;
 const server = http.createServer((req, res) => {
@@ -32,6 +33,7 @@ const server = http.createServer((req, res) => {
     const reply=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data))};
     if(req.url==='/updates'){reply(200,updater.status());return}
     if(req.url==='/updates/check'){updater.check().then(data=>reply(200,data)).catch(()=>reply(500,{phase:'error',message:'无法检查更新'}));return}
+    if(installingUpdate){reply(409,{message:'正在安装更新，请稍候'});return}
     const pending=updater.pending(),launcher=path.join(__dirname,'HandwritingNotebook.exe');if(!pending||!fs.existsSync(launcher)){reply(400,{message:!pending?'没有可安装的更新':'请在安装版中使用自动更新'});return}
     const args=['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'apply-update.ps1'),'-Root',__dirname,'-Archive',pending.file,'-Sha256',pending.sha256,'-ExpectedVersion',pending.version,'-BackendPid',String(process.pid)];
     try{const helper=spawn('powershell.exe',args,{detached:true,windowsHide:true,stdio:'ignore'});helper.once('error',()=>reply(500,{message:'无法启动更新程序'}));helper.once('spawn',()=>{helper.unref();try{fs.writeFileSync(path.join(__dirname,'.update-exit-request'),shutdownKey,'utf8');installingUpdate=true}catch(e){reply(500,{message:'无法准备重启'});return}reply(200,{message:'正在安装更新并重启'});setTimeout(()=>{if(browser&&browser.pid&&browser.exitCode===null)execFile('taskkill.exe',['/PID',String(browser.pid),'/T','/F'],{windowsHide:true,timeout:5000},()=>{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()});else{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()}},700)});}catch(e){reply(500,{message:'无法启动更新程序'})}return;
