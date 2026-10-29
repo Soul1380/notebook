@@ -40,7 +40,24 @@ function beginFrameMove(frame){snapshot();const movedStrokes=[],newStrokes=[];fo
 function moveFrameContents(group,dx,dy){for(const {stroke,points} of group.movedStrokes)stroke.points=points.map(p=>({x:p.x+dx,y:p.y+dy}));for(const {object,x,y} of group.movedObjects){object.x=x+dx;object.y=y+dy}}
 function near(p){return strokes.some(s=>s.points.some((a,i)=>{const b=s.points[i+1]||a,dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)<12/view.scale}))}
 let eraserSize=24;function erase(p){const result=[];for(const s of strokes){let run=[];const flush=()=>{if(run.length)result.push({...s,points:run});run=[]};const add=q=>{if(Math.hypot(q.x-p.x,q.y-p.y)<=eraserSize/2/view.scale+s.width/2)flush();else run.push(q)};if(s.points.length===1)add(s.points[0]);else for(let i=0;i<s.points.length-1;i++){const a=s.points[i],b=s.points[i+1],n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)));for(let j=i?1:0;j<=n;j++)add({x:a.x+(b.x-a.x)*j/n,y:a.y+(b.y-a.y)*j/n})}flush()}strokes=result;draw()}
-function shapePoints(kind,a,b,center){if(center)a={x:2*a.x-b.x,y:2*a.y-b.y};let dx=b.x-a.x,dy=b.y-a.y;if(kind==='square'||kind==='circle'){let d=Math.max(Math.abs(dx),Math.abs(dy));dx=(dx<0?-1:1)*d;dy=(dy<0?-1:1)*d}let x=a.x+dx,y=a.y+dy;if(kind==='line')return[a,b];if(kind==='rect'||kind==='square')return[a,{x,y:a.y},{x,y},{x:a.x,y},a];if(kind==='triangle')return[{x:a.x+dx/2,y:a.y},{x,y},{x:a.x,y},{x:a.x+dx/2,y:a.y}];let pts=[];for(let i=0;i<=100;i++){let t=i*Math.PI*2/100;pts.push({x:a.x+dx/2+dx/2*Math.cos(t),y:a.y+dy/2+dy/2*Math.sin(t)})}return pts}
+function shapePoints(kind,start,current,center){
+  // Constrain the original drag vector before reflecting it about the fixed center.
+  let dx=current.x-start.x,dy=current.y-start.y;
+  if(kind==='square'||kind==='circle'){
+    const size=Math.max(Math.abs(dx),Math.abs(dy));
+    dx=(dx<0?-1:1)*size;dy=(dy<0?-1:1)*size;
+  }
+  const a=center?{x:start.x-dx,y:start.y-dy}:{x:start.x,y:start.y};
+  const b={x:start.x+dx,y:start.y+dy};
+  dx=b.x-a.x;dy=b.y-a.y;
+  const x=b.x,y=b.y;
+  if(kind==='line')return[a,b];
+  if(kind==='rect'||kind==='square')return[a,{x,y:a.y},{x,y},{x:a.x,y},a];
+  if(kind==='triangle')return[{x:a.x+dx/2,y:a.y},{x,y},{x:a.x,y},{x:a.x+dx/2,y:a.y}];
+  const points=[];
+  for(let i=0;i<=100;i++){const t=i*Math.PI*2/100;points.push({x:a.x+dx/2+dx/2*Math.cos(t),y:a.y+dy/2+dy/2*Math.sin(t)})}
+  return points;
+}
 function positionEditor(){if(!editor)return;const o=editor.object,e=editor.element;e.style.left=(view.x+o.x*view.scale)+'px';e.style.top=(view.y+o.y*view.scale)+'px';e.style.width=o.w*view.scale+'px';e.style.height=o.h*view.scale+'px';e.style.fontSize=16*view.scale+'px';e.style.color=o.color}
 function editText(o){if(editor)finishText();snapshot();const e=document.createElement('textarea');e.className='editor';e.value=o.text;area.append(e);editor={element:e,object:o};positionEditor();draw();e.focus();e.addEventListener('blur',finishText,{once:true})}
 function finishText(){if(!editor)return;const current=editor;editor=null;current.object.text=current.element.value;current.element.remove();persist();draw()}
