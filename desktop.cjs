@@ -14,9 +14,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'});
     fs.createReadStream(path.join(__dirname,'index.html')).pipe(res); return;
   }
-  const staticFiles = new Set(['/app.js','/preferences.js','/colors.js','/files.js','/interaction.js','/styles.css']);
+  const staticFiles = new Set(['/app.js','/preferences.js','/colors.js','/files.js','/interaction.js','/styles.css','/notebook.ico']);
   if (req.method === 'GET' && staticFiles.has(req.url)) {
-    const name=req.url.slice(1);res.writeHead(200, {'Content-Type':name.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8','Cache-Control':'no-store'});fs.createReadStream(path.join(__dirname,name)).pipe(res);return;
+    const name=req.url.slice(1);res.writeHead(200, {'Content-Type':name.endsWith('.css')?'text/css; charset=utf-8':name.endsWith('.ico')?'image/x-icon':'text/javascript; charset=utf-8','Cache-Control':'no-store'});fs.createReadStream(path.join(__dirname,name)).pipe(res);return;
   }
   if (req.url === '/tasks' || req.url === '/tasks/activate') {
     const activate=req.url.endsWith('/activate');
@@ -41,8 +41,11 @@ const server = http.createServer((req, res) => {
       const candidates=[path.join(process.env.PROGRAMFILES||'C:\\Program Files','Google/Chrome/Application/chrome.exe'),path.join(process.env['PROGRAMFILES(X86)']||'C:\\Program Files (x86)','Google/Chrome/Application/chrome.exe'),path.join(process.env.LOCALAPPDATA||'','Google/Chrome/Application/chrome.exe')];const chrome=candidates.find(fs.existsSync);if(!chrome){respond(false,'未找到 Chrome，请先安装 Chrome 或检查安装位置');return}launch(chrome,['https://www.baidu.com/s?wd='+encodeURIComponent(data.text)]);
     });return;
   }
-  const match = /^\/window\/(minimize|maximize|pin)$/.exec(req.url);
+  const match = /^\/window\/(minimize|maximize|pin|directory)$/.exec(req.url);
   if (req.method !== 'POST' || !match || req.headers['x-notebook-token'] !== token || req.headers.origin !== `http://127.0.0.1:${server.address().port}`) {res.writeHead(403);res.end();return;}
+  if(match[1]==='directory'){
+    try {const explorer=spawn('explorer.exe',[__dirname],{detached:true,stdio:'ignore'});explorer.once('error',()=>{res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:false,error:'无法打开软件目录'}))});explorer.once('spawn',()=>{explorer.unref();res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true}))})}catch(e){res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:false,error:'无法打开软件目录'}))}return;
+  }
   const nextPin = !pinned;
   execFile('powershell.exe', ['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'window.ps1'),match[1],nextPin ? 'true' : 'false'], {windowsHide:true}, (err, stdout, stderr) => {
     if (!err && match[1] === 'pin') pinned = nextPin;
@@ -55,6 +58,7 @@ server.listen(17683, '127.0.0.1', () => {
   const url = `http://127.0.0.1:${server.address().port}/?token=${token}`;
   const geometry=process.argv.slice(2).filter(arg=>/^--(?:position|size)=-?\d+,-?\d+$/.test(arg)).map(arg=>arg.replace('--position=','--window-position=').replace('--size=','--window-size='));
   browser = spawn(edge, [`--app=${url}`, '--new-window', ...geometry, `--user-data-dir=${path.join(__dirname,'.browser-data')}`], {detached:false, stdio:'ignore'});
+  browser.once('spawn',()=>{const iconHelper=spawn('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'window.ps1'),'icon','false'],{windowsHide:true,stdio:'ignore'});iconHelper.on('error',()=>{});});
   browser.on('error', err => {console.error('无法启动 Edge:',err.message);server.close()});
   browser.on('exit', () => server.close());
 });

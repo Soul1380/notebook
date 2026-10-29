@@ -61,3 +61,6 @@
 安装程序可选择安装路径，并显示使用须知；安装后运行 HandwritingNotebook.exe。程序主进程为 HandwritingNotebook，笔记窗口的本地服务进程为 HandwritingNotebookBackend；系统的 Microsoft Edge 和 Windows PowerShell 仍使用各自原有名称。
 安装版自带后台运行组件，需 Windows 10/11 64 位及 Microsoft Edge；程序数据写入安装目录。先前版本和安装版的数据各自保存，迁移时请先在旧版导出 .notebook 工程，再在安装版打开。
 源码中的 packaging/Build.ps1 用于构建安装程序；需要提供 Node.js 可执行文件、临时构建目录与输出路径。
+
+## 软件目录与窗口图标
+在窗口的“窗口”标签点击“打开软件所在目录”，或右键浮动球选择同名菜单，可打开当前程序的文件夹。窗口图标使用手写笔记本图标；如 Windows 仍显示旧图标，可先完全退出程序后重新启动。

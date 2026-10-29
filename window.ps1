@@ -14,17 +14,31 @@ public static class NotebookWindow {
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern IntPtr LoadImage(IntPtr inst, string path, uint type, int width, int height, uint flags);
+  [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr SendMessageTimeout(IntPtr h, uint msg, IntPtr w, IntPtr l, uint flags, uint timeout, out IntPtr result);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr h);
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
 }
 "@
 [void][NotebookWindow]::SetProcessDPIAware()
 $found=[IntPtr]::Zero
-for($attempt=0;$attempt -lt 80 -and $found -eq [IntPtr]::Zero;$attempt++){
+$attemptLimit=if($Action -eq 'icon'){250}else{80}
+for($attempt=0;$attempt -lt $attemptLimit -and $found -eq [IntPtr]::Zero;$attempt++){
   [NotebookWindow]::EnumWindows({param($h,$p) $t=New-Object System.Text.StringBuilder 512;[void][NotebookWindow]::GetWindowText($h,$t,$t.Capacity);if([NotebookWindow]::IsWindowVisible($h) -and $t.ToString() -match '^Notebook -'){$script:found=$h;return $false};return $true},[IntPtr]::Zero)|Out-Null
   if($found -eq [IntPtr]::Zero){Start-Sleep -Milliseconds 100}
 }
 if($found -eq [IntPtr]::Zero){Write-Error 'Notebook window not found';exit 1}
 switch($Action){
+  'icon' {
+    $iconPath=Join-Path $PSScriptRoot 'notebook.ico'; if(!(Test-Path -LiteralPath $iconPath)){exit 1}
+    $small=[NotebookWindow]::LoadImage([IntPtr]::Zero,$iconPath,1,32,32,16);$large=[NotebookWindow]::LoadImage([IntPtr]::Zero,$iconPath,1,64,64,16)
+    if($small -eq [IntPtr]::Zero -or $large -eq [IntPtr]::Zero){exit 1}
+    $result=[IntPtr]::Zero;[void][NotebookWindow]::SendMessageTimeout($found,0x80,[IntPtr]::Zero,$small,2,1000,[ref]$result);[void][NotebookWindow]::SendMessageTimeout($found,0x80,[IntPtr]1,$large,2,1000,[ref]$result)
+    # Keep the loaded icon handles valid until this window closes.
+    while([NotebookWindow]::IsWindow($found)){Start-Sleep -Milliseconds 800;$title=New-Object System.Text.StringBuilder 512;[void][NotebookWindow]::GetWindowText($found,$title,$title.Capacity);if($title.ToString() -notmatch '^Notebook -'){break}}
+    [void][NotebookWindow]::DestroyIcon($small);[void][NotebookWindow]::DestroyIcon($large)
+  }
   'restore' {if([NotebookWindow]::IsIconic($found)){[void][NotebookWindow]::ShowWindow($found,9)};[void][NotebookWindow]::SetForegroundWindow($found)}
   'animate' {
     [void][NotebookWindow]::ShowWindow($found,9)
@@ -38,3 +52,4 @@ switch($Action){
   'maximize' {if([NotebookWindow]::IsZoomed($found)){[void][NotebookWindow]::ShowWindow($found,9)}else{[void][NotebookWindow]::ShowWindow($found,3)}}
   'pin' {$order=if($Pinned -eq 'true'){[IntPtr](-1)}else{[IntPtr](-2)};if(-not [NotebookWindow]::SetWindowPos($found,$order,0,0,0,0,3)){exit 1}}
 }
+

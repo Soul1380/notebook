@@ -30,6 +30,7 @@ try {
   }
   $menu=New-Object System.Windows.Forms.ContextMenuStrip
   [void]$menu.Items.Add('打开笔记本',$null,[System.EventHandler]{& $script:openNotebook})
+  [void]$menu.Items.Add('打开软件所在目录',$null,[System.EventHandler]{Start-Process -FilePath explorer.exe -ArgumentList ('"'+$PSScriptRoot+'"')})
   $skinMenu=New-Object System.Windows.Forms.ToolStripMenuItem('皮肤颜色')
   $choices=@(@('森林绿','#263F35'),@('海洋蓝','#315C87'),@('薰衣草','#76639B'),@('暖珊瑚','#C46B5E'),@('奶油白','#F3EBDD'),@('炭黑','#30343A'))
   foreach($choice in $choices){$item=New-Object System.Windows.Forms.ToolStripMenuItem($choice[0]);$item.Tag=$choice[1];$item.Add_Click({param($sender,$e) & $script:setSkin ([System.Drawing.ColorTranslator]::FromHtml([string]$sender.Tag))});[void]$skinMenu.DropDownItems.Add($item)}
