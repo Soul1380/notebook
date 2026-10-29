@@ -67,7 +67,27 @@ const server = http.createServer((req, res) => {
     if(installingUpdate){reply(409,{message:'正在安装更新，请稍候'});return}
     const pending=updater.pending(),launcher=path.join(__dirname,'HandwritingNotebook.exe');if(!pending||!fs.existsSync(launcher)){reply(400,{message:!pending?'没有可安装的更新':'请在安装版中使用自动更新'});return}
     const args=['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'apply-update.ps1'),'-Root',__dirname,'-Archive',pending.file,'-Sha256',pending.sha256,'-ExpectedVersion',pending.version,'-BackendPid',String(process.pid)];
-    try{const helper=spawn('powershell.exe',args,{detached:true,windowsHide:true,stdio:'ignore'});helper.once('error',()=>reply(500,{message:'无法启动更新程序'}));helper.once('spawn',()=>{helper.unref();try{fs.writeFileSync(path.join(__dirname,'.update-exit-request'),shutdownKey,'utf8');installingUpdate=true}catch(e){reply(500,{message:'无法准备重启'});return}reply(200,{message:'正在安装更新并重启'});setTimeout(()=>{if(browser&&browser.pid&&browser.exitCode===null)execFile('taskkill.exe',['/PID',String(browser.pid),'/T','/F'],{windowsHide:true,timeout:5000},()=>{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()});else{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()}},700)});}catch(e){reply(500,{message:'无法启动更新程序'})}return;
+    const readyFile=path.join(__dirname,'.update-cache','helper-ready'),resultFile=path.join(__dirname,'.update-cache','update-result.json');
+    try{for(const f of [readyFile,resultFile])if(fs.existsSync(f))fs.unlinkSync(f)}catch(e){reply(500,{message:'无法准备更新日志'});return}
+    installingUpdate=true;
+    let helper,answered=false;
+    const fail=message=>{if(answered)return;answered=true;installingUpdate=false;if(helper&&!helper.killed)helper.kill();reply(500,{message})};
+    try{
+      helper=spawn('powershell.exe',args,{detached:true,windowsHide:true,stdio:'ignore'});
+      helper.once('error',()=>fail('无法启动更新程序'));
+      helper.once('exit',()=>{if(!answered)fail('更新程序启动失败，请检查更新日志')});
+      const started=Date.now();
+      const waitReady=setInterval(()=>{
+        if(answered){clearInterval(waitReady);return}
+        if(Date.now()-started>15000){clearInterval(waitReady);fail('更新程序准备超时，请重试');return}
+        try{
+          if(!fs.existsSync(readyFile)||fs.readFileSync(readyFile,'utf8')!==pending.version)return;
+          fs.writeFileSync(path.join(__dirname,'.update-exit-request'),shutdownKey,'utf8');
+          clearInterval(waitReady);answered=true;helper.unref();reply(200,{message:'正在安装更新并重启'});
+          setTimeout(()=>{if(browser&&browser.pid&&browser.exitCode===null)execFile('taskkill.exe',['/PID',String(browser.pid),'/T','/F'],{windowsHide:true,timeout:5000},()=>{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()});else{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()}},700);
+        }catch(e){clearInterval(waitReady);fail('无法准备重启：'+e.message)}
+      },100);
+    }catch(e){fail('无法启动更新程序')};return;
   }
   if(req.url==='/shutdown'){
     if(req.method!=='POST'||req.headers['x-notebook-shutdown']!==shutdownKey){res.writeHead(403);res.end();return}
