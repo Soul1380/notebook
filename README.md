@@ -40,3 +40,44 @@ Windows 手写画板，支持笔迹、图片、文本框、可定位的注解框
 安装目录内运行 Uninstall.exe，先保存工程并通过浮动球右键菜单退出软件。卸载仅删除程序文件，保留工程、设置、自动备份和其他个人文件。通过自动更新升级后，重新启动浮动球即可生成卸载程序。
 
 浮动球拖到距屏幕左右边缘 100 像素以内并松开，会自动吸附；鼠标离开后隐藏到边缘，移回时展开。
+
+## 插件使用手册（1.0.5）
+
+在“首选项 → 插件”点击“打开插件目录”。为每个插件创建独立子文件夹，在其中放置 UTF-8 编码的 manifest.json；点击“刷新列表”，再用开关启用。插件文件和启用状态会在更新后保留。此版本采用声明式插件，不执行插件 JavaScript 或任意系统命令。
+
+每个 manifest.json 都必须提供 name（名称）、version（版本）、author（作者）、description（简介）、type（类型）和 config（配置）。插件目录名即唯一 ID，只能包含英文字母、数字、点、横线或下划线。以下五类可以分别创建：
+
+### 界面 ui
+
+```json
+{"name":"森林界面","version":"1.0.0","author":"示例","description":"调整工具栏颜色","type":"ui","config":{"toolbarBackground":"#EAF2E8","activeTab":"#BBDDC1","buttonBackground":"#D7E8D5","buttonText":"#294C3A"}}
+```
+颜色为六位十六进制值；变量分别是工具栏背景、活动选项卡背景、插件工具按钮背景和文字颜色。
+
+### 工具 tool
+
+```json
+{"name":"快捷工具","version":"1.0.0","author":"示例","description":"添加复位视图按钮","type":"tool","config":{"actions":[{"label":"复位视图","command":"zoomReset"},{"label":"放大","command":"zoomIn"}]}}
+```
+支持的 command：pen、eraser、select、text、check、undo、zoomIn、zoomOut、zoomReset。工具按钮出现在绘制工具栏。此版本提供已有工具的组合入口，不运行自定义工具代码。
+
+### 运行优化 optimization
+
+```json
+{"name":"减少动画","version":"1.0.0","author":"示例","description":"减少界面过渡动画","type":"optimization","config":{"reduceMotion":true}}
+```
+此类型目前提供减少界面动画，并不承诺提升画布性能或允许执行后台程序。
+
+### 字体 font
+
+```json
+{"name":"我的字体","version":"1.0.0","author":"示例","description":"为文本框提供字体","type":"font","config":{"file":"myfont.woff2"}}
+```
+将字体文件放在 manifest.json 同一文件夹，支持 woff、woff2、ttf、otf，最大 10 MB。启用后在文本字体选择框中选择。其他电脑需要安装同 ID 插件才能显示此字体。
+
+### 语言包 language
+
+```json
+{"name":"English","version":"1.0.0","author":"示例","description":"常用工具英文名称","type":"language","config":{"labels":{"pen":"Pen","eraser":"Eraser","select":"Select","text":"Text","check":"Checklist","undo":"Undo","save":"Save PNG","preferences":"Settings","newProject":"New","openProject":"Open"}}}
+```
+可翻译的键为以上示例中的键。缺失的翻译沿用原文；用户笔记内容不会翻译。多个同类插件同时启用时，后加载的设置覆盖同名项。禁用插件立即撤销它的界面效果；插件字体在禁用时将回退为系统字体。

@@ -40,3 +40,7 @@ body[data-ui-theme=dark][data-toolbar-style=fluent] .tabs button,body[data-ui-th
 body[data-ui-theme=dark][data-toolbar-style=fluent] .tabs button[aria-selected=true],body[data-ui-theme=dark][data-toolbar-style=fluent] .top .pen.active{background:#315b82;color:#fff}
 body[data-ui-theme=dark][data-toolbar-style=material] .tabs button,body[data-ui-theme=dark][data-toolbar-style=material] .top .pen,body[data-ui-theme=dark][data-toolbar-style=material] .top select{background:#3c374d;color:#ede7fa}
 body[data-ui-theme=dark][data-toolbar-style=material] .tabs button[aria-selected=true],body[data-ui-theme=dark][data-toolbar-style=material] .top .pen.active{background:#7650cd;color:#fff}
+
+.update-progress{display:flex;flex:1 1 100%;align-items:center;gap:10px;font-size:12px}.update-progress[hidden]{display:none}.update-progress progress{width:160px;max-width:45%;accent-color:#548367}.update-progress span{white-space:nowrap}body[data-ui-theme=dark] .update-progress{color:#e4eee5}
+.plugin-card{border:1px solid #d6dfd4;border-radius:8px;padding:10px;margin:8px 0}.plugin-card label{display:flex;gap:8px;align-items:center}.plugin-card p{margin:5px 0}.plugin-reduced-motion *, .plugin-reduced-motion *::before,.plugin-reduced-motion *::after{animation-duration:0.001ms!important;transition-duration:0.001ms!important}
+.top{background:var(--plugin-toolbar-bg,#fff)}.tabs button[aria-selected=true]{background:var(--plugin-tab-active,#e2eee6)}.top .plugin-tool-action{background:var(--plugin-button-bg,#eef3ef);color:var(--plugin-button-color,#294c3a)}

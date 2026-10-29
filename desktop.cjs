@@ -22,6 +22,30 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && staticFiles.has(req.url)) {
     const name=req.url.slice(1);res.writeHead(200, {'Content-Type':name.endsWith('.css')?'text/css; charset=utf-8':name.endsWith('.ico')?'image/x-icon':'text/javascript; charset=utf-8','Cache-Control':'no-store'});fs.createReadStream(path.join(__dirname,name)).pipe(res);return;
   }
+  if(['/plugins','/plugins/open'].includes(req.url)){
+    const opening=req.url==='/plugins/open';
+    if(req.headers['x-notebook-token']!==token||(opening&&(req.method!=='POST'||req.headers.origin!==`http://127.0.0.1:${server.address().port}`))||(!opening&&req.method!=='GET')){res.writeHead(403);res.end();return}
+    try{
+      const dir=path.join(__dirname,'plugins');fs.mkdirSync(dir,{recursive:true});
+      if(opening){const child=spawn('explorer.exe',[dir],{detached:true,windowsHide:true,stdio:'ignore'});child.on('error',()=>{});child.unref();res.writeHead(200);res.end('{}');return}
+      const plugins=[];
+      for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+        if(!entry.isDirectory()||entry.isSymbolicLink()||!/^[-\w.]{1,80}$/.test(entry.name))continue;
+        try{
+          const base=path.join(dir,entry.name),manifest=path.join(base,'manifest.json');
+          if(fs.lstatSync(manifest).isSymbolicLink()||fs.statSync(manifest).size>131072)continue;
+          const data=JSON.parse(fs.readFileSync(manifest,'utf8'));
+          if(!data||typeof data.name!=='string'||typeof data.version!=='string'||typeof data.author!=='string'||typeof data.description!=='string')continue;
+          const item={id:entry.name,name:data.name.slice(0,100),version:data.version.slice(0,40),author:data.author.slice(0,100),description:data.description.slice(0,500),type:data.type,config:data.config||{}};
+          if(data.type==='font'&&typeof item.config.file==='string'&&/^[\w.-]+\.(woff2?|ttf|otf)$/i.test(item.config.file)){
+            const f=path.join(base,item.config.file);if(!fs.lstatSync(f).isSymbolicLink()&&fs.statSync(f).size<=10*1024*1024)item.fontData=fs.readFileSync(f).toString('base64');
+          }
+          plugins.push(item);
+        }catch(e){}
+      }
+      res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(plugins));
+    }catch(e){res.writeHead(500);res.end('{}')};return;
+  }
   if (req.url === '/tasks' || req.url === '/tasks/activate') {
     const activate=req.url.endsWith('/activate');
     if(req.headers['x-notebook-token']!==token || (activate && (req.method!=='POST'||req.headers.origin!==`http://127.0.0.1:${server.address().port}`)) || (!activate && req.method!=='GET')){res.writeHead(403);res.end();return;}

@@ -44,7 +44,11 @@ async function installReadyUpdate(){
     updateStatus.textContent='自动更新暂停：'+e.message+'。请保存工程后重试。';
   }
 }
+function formatDownloadSize(bytes){if(bytes>=1048576)return (bytes/1048576).toFixed(1)+' MB';if(bytes>=1024)return (bytes/1024).toFixed(1)+' KB';return Math.round(bytes)+' B'}
 function displayUpdate(data){
+  const progressWrap=document.querySelector('#updateProgressWrap'),progress=document.querySelector('#updateProgress'),progressText=document.querySelector('#updateProgressText');
+  progressWrap.hidden=data.phase!=='downloading';
+  if(data.phase==='downloading'&&data.total>0){const percent=Math.min(100,Math.max(0,data.downloaded/data.total*100));progress.value=percent;progressText.textContent=percent.toFixed(1)+'% · '+formatDownloadSize(data.downloaded)+' / '+formatDownloadSize(data.total)+' · '+formatDownloadSize(data.bytesPerSecond||0)+'/s'}
   if(updateInstalling)return;
   const current=data.currentVersion?'当前版本 '+data.currentVersion+' · ':'';
   updateStatus.textContent=current+(data.message||'检查失败');installUpdate.hidden=data.phase!=='ready';
@@ -61,3 +65,30 @@ installUpdate.onclick=()=>{if(editor)finishText();installReadyUpdate()};
 // The app has loaded successfully; normal launches should retain their blank-canvas behavior.
 localStorage.removeItem('notebook-update-session-v1');
 if(location.protocol!=='file:'){setInterval(refreshUpdate,2000);refreshUpdate()}else displayUpdate({message:'请在安装版中使用自动更新'});
+// Declarative plugins run through a restricted host API; no plugin JavaScript is executed.
+let availablePlugins=[],pluginEnabled={};
+try{pluginEnabled=JSON.parse(localStorage.getItem('notebook-plugins-v1')||'{}')||{}}catch(e){}
+const pluginToken=new URLSearchParams(location.search).get('token');
+async function pluginRequest(url,method='GET'){const r=await fetch(url,{method,headers:{'X-Notebook-Token':pluginToken}});if(!r.ok)throw Error('插件服务不可用');return r.json()}
+const pluginTargets={pen:'#pen',eraser:'#eraser',select:'#select',text:'#textTool',check:'#checkTool',undo:'#undo',save:'#save',preferences:'#prefs',newProject:'#newProject',openProject:'#openProject'};
+const pluginOriginalLabels={};for(const [key,selector] of Object.entries(pluginTargets)){const node=document.querySelector(selector);if(node)pluginOriginalLabels[key]=node.textContent}
+const pluginFontNodes=[];
+function applyPlugins(){
+ document.querySelector('#pluginTools').replaceChildren();document.querySelectorAll('.plugin-tool-action').forEach(n=>n.remove());
+ for(const key of ['--plugin-toolbar-bg','--plugin-tab-active','--plugin-button-bg','--plugin-button-color'])document.documentElement.style.removeProperty(key);
+ document.body.classList.remove('plugin-reduced-motion');for(const [key,value] of Object.entries(pluginOriginalLabels)){const node=document.querySelector(pluginTargets[key]);if(node)node.textContent=value}
+ while(pluginFontNodes.length)pluginFontNodes.pop().remove();document.querySelectorAll('#textFont option[data-plugin]').forEach(n=>n.remove());
+ for(const p of availablePlugins){if(!pluginEnabled[p.id])continue;const c=p.config||{};
+  if(p.type==='ui'){for(const [key,variable] of Object.entries({toolbarBackground:'--plugin-toolbar-bg',activeTab:'--plugin-tab-active',buttonBackground:'--plugin-button-bg',buttonText:'--plugin-button-color'})){if(typeof c[key]==='string'&&/^#[0-9a-f]{6}$/i.test(c[key]))document.documentElement.style.setProperty(variable,c[key])}}
+  else if(p.type==='optimization'&&c.reduceMotion===true)document.body.classList.add('plugin-reduced-motion');
+  else if(p.type==='language'&&c.labels&&typeof c.labels==='object'){for(const [key,value] of Object.entries(c.labels)){if(pluginTargets[key]&&typeof value==='string'&&value.length<=50){const node=document.querySelector(pluginTargets[key]);if(node)node.textContent=value}}}
+  else if(p.type==='font'&&p.fontData){const family='Plugin_'+p.id.replace(/[^a-zA-Z0-9_]/g,'_'),style=document.createElement('style'),ext=(c.file||'').split('.').pop().toLowerCase(),mime={woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf'}[ext];if(!mime)continue;style.textContent=`@font-face{font-family:${family};src:url(data:${mime};base64,${p.fontData})}`;document.head.append(style);pluginFontNodes.push(style);const option=document.createElement('option');option.value=family;option.textContent=p.name;option.dataset.plugin=p.id;document.querySelector('#textFont').append(option)}
+  else if(p.type==='tool'&&Array.isArray(c.actions)){const toolbar=document.querySelector('#pen').parentElement;for(const action of c.actions.slice(0,12)){if(!action||!['pen','eraser','select','text','check','undo','zoomIn','zoomOut','zoomReset'].includes(action.command)||typeof action.label!=='string')continue;const button=document.createElement('button');button.type='button';button.className='pen plugin-tool-action';button.textContent=action.label.slice(0,40);button.onclick=()=>{if(action.command==='undo')undo();else if(action.command==='zoomIn')zoomAtCenter(view.scale*1.2);else if(action.command==='zoomOut')zoomAtCenter(view.scale/1.2);else if(action.command==='zoomReset')zoomAtCenter(1);else selectTool(action.command)};toolbar.append(button)}}
+ }
+}
+function renderPlugins(){const container=document.querySelector('#pluginList'),query=document.querySelector('#pluginSearch').value.trim().toLowerCase();container.replaceChildren();const matches=availablePlugins.filter(p=>[p.name,p.author,p.description,p.id].some(v=>String(v).toLowerCase().includes(query)));if(!matches.length){container.textContent='没有找到插件';return}for(const p of matches){const card=document.createElement('div');card.className='plugin-card';const label=document.createElement('label'),toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=!!pluginEnabled[p.id];toggle.setAttribute('aria-label','启用 '+p.name);toggle.onchange=()=>{pluginEnabled[p.id]=toggle.checked;localStorage.setItem('notebook-plugins-v1',JSON.stringify(pluginEnabled));applyPlugins()};const title=document.createElement('strong');title.textContent=p.name+' · '+p.version;label.append(toggle,title);const meta=document.createElement('p');meta.textContent='作者：'+p.author+' · 类型：'+p.type;const desc=document.createElement('p');desc.textContent=p.description;card.append(label,meta,desc);container.append(card)}}
+async function refreshPlugins(){try{availablePlugins=await pluginRequest('/plugins');applyPlugins();renderPlugins()}catch(e){document.querySelector('#pluginList').textContent='无法读取插件目录，请使用桌面版。'}}
+document.querySelector('#pluginSearch').addEventListener('input',renderPlugins);
+document.querySelector('#pluginRefresh').onclick=refreshPlugins;
+document.querySelector('#pluginOpen').onclick=()=>pluginRequest('/plugins/open','POST').catch(()=>alert('无法打开插件目录'));
+if(location.protocol!=='file:')refreshPlugins();
