@@ -1,7 +1,8 @@
 ﻿param(
   [Parameter(Mandatory=$true)][string]$NodePath,
   [Parameter(Mandatory=$true)][string]$StagePath,
-  [Parameter(Mandatory=$true)][string]$InstallerPath
+  [Parameter(Mandatory=$true)][string]$InstallerPath,
+  [string]$UpdatePackagePath
 )
 $ErrorActionPreference='Stop'
 $project=Split-Path -Parent $PSScriptRoot
@@ -9,7 +10,7 @@ $compiler=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if(!(Test-Path -LiteralPath $compiler)){throw 'C# compiler not found'}
 if(!(Test-Path -LiteralPath $NodePath)){throw 'Node runtime not found'}
 New-Item -ItemType Directory -Force -Path $StagePath | Out-Null
-$sourceFiles=@('index.html','styles.css','app.js','preferences.js','colors.js','files.js','interaction.js','desktop.cjs','floating.ps1','tasks.ps1','window.ps1','README.md','notebook.ico')
+$sourceFiles=@('index.html','styles.css','app.js','preferences.js','colors.js','files.js','interaction.js','desktop.cjs','floating.ps1','tasks.ps1','window.ps1','README.md','notebook.ico','updater.cjs','apply-update.ps1','version.json','update-config.json')
 $allowed=@($sourceFiles)+@('HandwritingNotebook.exe','HandwritingNotebookBackend.exe')
 $unexpected=@(Get-ChildItem -LiteralPath $StagePath -Force | Where-Object { $_.Name -notin $allowed -or $_.PSIsContainer })
 if($unexpected.Count -gt 0){throw 'Build stage contains unexpected files; choose an empty staging folder.'}
@@ -25,4 +26,10 @@ if(Test-Path -LiteralPath $payload){Remove-Item -LiteralPath $payload -Force}
 [System.IO.Compression.ZipFile]::CreateFromDirectory($StagePath,$payload,[System.IO.Compression.CompressionLevel]::Optimal,$false)
 & $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll "/win32icon:$icon" "/resource:$payload,NotebookPayload.zip" "/out:$InstallerPath" (Join-Path $PSScriptRoot 'Installer.cs')
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed'}
+if($UpdatePackagePath){
+  if(Test-Path -LiteralPath $UpdatePackagePath){Remove-Item -LiteralPath $UpdatePackagePath -Force}
+  $updateNames=@($sourceFiles | Where-Object {$_ -ne 'update-config.json'})+@('HandwritingNotebook.exe','HandwritingNotebookBackend.exe')
+  $stream=[IO.File]::Open($UpdatePackagePath,[IO.FileMode]::CreateNew)
+  try{$zip=New-Object IO.Compression.ZipArchive($stream,[IO.Compression.ZipArchiveMode]::Create,$false);try{foreach($name in $updateNames){[void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,(Join-Path $StagePath $name),$name,[IO.Compression.CompressionLevel]::Optimal)}}finally{$zip.Dispose()}}finally{$stream.Dispose()}
+}
 Get-Item -LiteralPath $InstallerPath | Select-Object FullName,Length

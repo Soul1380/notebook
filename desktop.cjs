@@ -7,6 +7,9 @@ const token = crypto.randomBytes(24).toString('hex');
 const shutdownKey=crypto.randomBytes(32).toString('hex');
 const sessionPath=path.join(__dirname,'.notebook-session.json');
 let browser;
+let installingUpdate=false;
+const updater=require('./updater.cjs').createUpdater(__dirname);
+updater.check().catch(()=>{});
 const edge = [process.env['PROGRAMFILES(X86)'],process.env.PROGRAMFILES,process.env.LOCALAPPDATA].filter(Boolean).map(root=>path.join(root,'Microsoft','Edge','Application','msedge.exe')).find(fs.existsSync)||'msedge.exe';
 let pinned = false;
 const server = http.createServer((req, res) => {
@@ -23,6 +26,15 @@ const server = http.createServer((req, res) => {
     if(req.headers['x-notebook-token']!==token || (activate && (req.method!=='POST'||req.headers.origin!==`http://127.0.0.1:${server.address().port}`)) || (!activate && req.method!=='GET')){res.writeHead(403);res.end();return;}
     function run(id){const args=['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'tasks.ps1'),activate?'activate':'list'];if(activate)args.push(id);execFile('powershell.exe',args,{windowsHide:true,timeout:12000,maxBuffer:4*1024*1024,encoding:'utf8'},(err,stdout)=>{if(err){res.writeHead(500);res.end();return}try{const data=JSON.parse(stdout);res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data))}catch(e){res.writeHead(500);res.end()}})}
     if(!activate){run();return}let body='';req.on('data',chunk=>{body+=chunk;if(body.length>1024)req.destroy()});req.on('end',()=>{try{const data=JSON.parse(body);if(typeof data.id!=='string'||!/^\d{1,18}$/.test(data.id))throw Error();run(data.id)}catch(e){res.writeHead(400);res.end()}});return;
+  }
+  if(['/updates','/updates/check','/updates/install'].includes(req.url)){
+    const post=req.url!=='/updates';if(req.headers['x-notebook-token']!==token||(post&&(req.method!=='POST'||req.headers.origin!==`http://127.0.0.1:${server.address().port}`))||(!post&&req.method!=='GET')){res.writeHead(403);res.end();return}
+    const reply=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data))};
+    if(req.url==='/updates'){reply(200,updater.status());return}
+    if(req.url==='/updates/check'){updater.check().then(data=>reply(200,data)).catch(()=>reply(500,{phase:'error',message:'无法检查更新'}));return}
+    const pending=updater.pending(),launcher=path.join(__dirname,'HandwritingNotebook.exe');if(!pending||!fs.existsSync(launcher)){reply(400,{message:!pending?'没有可安装的更新':'请在安装版中使用自动更新'});return}
+    const args=['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'apply-update.ps1'),'-Root',__dirname,'-Archive',pending.file,'-Sha256',pending.sha256,'-ExpectedVersion',pending.version,'-BackendPid',String(process.pid)];
+    try{const helper=spawn('powershell.exe',args,{detached:true,windowsHide:true,stdio:'ignore'});helper.once('error',()=>reply(500,{message:'无法启动更新程序'}));helper.once('spawn',()=>{helper.unref();try{fs.writeFileSync(path.join(__dirname,'.update-exit-request'),shutdownKey,'utf8');installingUpdate=true}catch(e){reply(500,{message:'无法准备重启'});return}reply(200,{message:'正在安装更新并重启'});setTimeout(()=>{if(browser&&browser.pid&&browser.exitCode===null)execFile('taskkill.exe',['/PID',String(browser.pid),'/T','/F'],{windowsHide:true,timeout:5000},()=>{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()});else{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()}},700)});}catch(e){reply(500,{message:'无法启动更新程序'})}return;
   }
   if(req.url==='/shutdown'){
     if(req.method!=='POST'||req.headers['x-notebook-shutdown']!==shutdownKey){res.writeHead(403);res.end();return}
@@ -52,7 +64,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'application/json'});res.end(JSON.stringify({ok:!err,pinned,error:err?(stderr||err.message):undefined}));
   });
 });
-server.on('close',()=>{try{const saved=JSON.parse(fs.readFileSync(sessionPath,'utf8'));if(saved.key===shutdownKey)fs.unlinkSync(sessionPath)}catch(e){}});
+server.on('close',()=>{if(installingUpdate)return;try{const saved=JSON.parse(fs.readFileSync(sessionPath,'utf8'));if(saved.key===shutdownKey)fs.unlinkSync(sessionPath)}catch(e){}});
 server.listen(17683, '127.0.0.1', () => {
   fs.writeFileSync(sessionPath,JSON.stringify({key:shutdownKey}),'utf8');
   const url = `http://127.0.0.1:${server.address().port}/?token=${token}`;

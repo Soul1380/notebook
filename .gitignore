@@ -3,3 +3,7 @@
 .ball-settings.json
 
 .notebook-session.json
+
+.update-cache/
+
+.update-exit-request
