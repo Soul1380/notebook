@@ -24,6 +24,7 @@ jobs:
           "tag=v$v" >> $env:GITHUB_OUTPUT
           gh release view "v$v" *> $null
           if ($LASTEXITCODE -eq 0) { "publish=false" >> $env:GITHUB_OUTPUT } else { "publish=true" >> $env:GITHUB_OUTPUT }
+          exit 0
       - name: Build installer and update archive
         if: steps.version.outputs.publish == 'true'
         shell: pwsh
