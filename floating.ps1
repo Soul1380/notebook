@@ -1,4 +1,4 @@
-﻿Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $mutex = New-Object System.Threading.Mutex($false, 'Local\HandwritingNotebookFloatingBall')
 if (-not $mutex.WaitOne(0, $false)) { exit }
