@@ -14,9 +14,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'});
     fs.createReadStream(path.join(__dirname,'index.html')).pipe(res); return;
   }
-  if (req.method === 'GET' && req.url === '/app.js') {
-    res.writeHead(200, {'Content-Type':'text/javascript; charset=utf-8', 'Cache-Control':'no-store'});
-    fs.createReadStream(path.join(__dirname,'app.js')).pipe(res); return;
+  const staticFiles = new Set(['/app.js','/preferences.js','/colors.js','/files.js','/interaction.js','/styles.css']);
+  if (req.method === 'GET' && staticFiles.has(req.url)) {
+    const name=req.url.slice(1);res.writeHead(200, {'Content-Type':name.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8','Cache-Control':'no-store'});fs.createReadStream(path.join(__dirname,name)).pipe(res);return;
   }
   if (req.url === '/tasks' || req.url === '/tasks/activate') {
     const activate=req.url.endsWith('/activate');
