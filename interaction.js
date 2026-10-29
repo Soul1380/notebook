@@ -24,8 +24,7 @@ window.addEventListener('pointerup',e=>{if(!radialGesture||e.pointerId!==radialG
 renderAnnotations();
 
 const updateStatus=document.querySelector('#updateStatus'),installUpdate=document.querySelector('#installUpdate');
-let updateInstalling=false,updateAttempted=false,lastUpdateActivity=Date.now();
-for(const event of ['pointerdown','pointermove','keydown','input'])document.addEventListener(event,()=>{lastUpdateActivity=Date.now()},{passive:true});
+let updateInstalling=false,updateAttempted=false;
 async function updateRequest(endpoint,method='GET'){
   if(location.protocol==='file:')return {phase:'unavailable',message:'请在安装版中使用'};
   const r=await fetch('/updates'+endpoint,{method,headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});
@@ -41,7 +40,7 @@ async function installReadyUpdate(){
     const data=await updateRequest('/install','POST');updateStatus.textContent=data.message;
   }catch(e){
     document.body.inert=false;updateInstalling=false;installUpdate.disabled=false;
-    updateStatus.textContent='自动更新暂停：'+e.message+'。请保存工程后重试。';
+    updateStatus.textContent='更新未完成：'+e.message+'，请点击安装重试。';
   }
 }
 function formatDownloadSize(bytes){if(bytes>=1048576)return (bytes/1048576).toFixed(1)+' MB';if(bytes>=1024)return (bytes/1024).toFixed(1)+' KB';return Math.round(bytes)+' B'}
@@ -53,8 +52,7 @@ function displayUpdate(data){
   const current=data.currentVersion?'当前版本 '+data.currentVersion+' · ':'';
   updateStatus.textContent=current+(data.message||'检查失败');installUpdate.hidden=data.phase!=='ready';
   if(data.phase==='ready'){
-    updateStatus.textContent=current+(updateAttempted?'自动更新暂停，请保存工程后点击安装重试':'新版本 '+data.version+' 已就绪，停止操作 10 秒后自动保存画布并更新');
-    if(!updateAttempted&&Date.now()-lastUpdateActivity>=10000)installReadyUpdate();
+    updateStatus.textContent=current+(updateAttempted?'更新未完成，请点击安装重试':'新版本 '+data.version+' 已就绪，点击安装并重启');
   }
 }
 async function refreshUpdate(){try{displayUpdate(await updateRequest(''))}catch(e){if(!updateInstalling)updateStatus.textContent='更新服务不可用，将自动重试'}}
