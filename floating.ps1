@@ -19,7 +19,7 @@ try {
     $client=New-Object System.Net.Sockets.TcpClient
     try {$client.Connect('127.0.0.1',17683);$running=$true} catch {$running=$false} finally {$client.Dispose()}
     if (-not $running) {
-      $node=Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe';if(!(Test-Path $node)){$node='node.exe'}
+      $node=Join-Path $PSScriptRoot 'HandwritingNotebookBackend.exe';if(!(Test-Path $node)){$node=Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe';if(!(Test-Path $node)){$node='node.exe'}}
       $screen=[System.Windows.Forms.Screen]::FromControl($form).WorkingArea;$w=[int][Math]::Min(1100,$screen.Width*0.86);$h=[int][Math]::Min(800,$screen.Height*0.86);$x=$screen.Left+[int](($screen.Width-$w)/2);$y=$screen.Top+[int](($screen.Height-$h)/2)
       $nodeArgs='"'+(Join-Path $PSScriptRoot 'desktop.cjs')+'" --position='+$x+','+$y+' --size='+$w+','+$h
       Start-Process -FilePath $node -ArgumentList $nodeArgs -WindowStyle Hidden
@@ -50,3 +50,4 @@ try {
   $timer.Add_Tick({if($script:dragging -or $script:dock -eq 'none' -or $menu.Visible){return};$screen=[System.Windows.Forms.Screen]::FromControl($form).WorkingArea;$mouse=[System.Windows.Forms.Cursor]::Position;$hover=$form.Bounds.Contains($mouse);if($hover){$script:expanded=$true}elseif($mouse.Y -lt $form.Top-12 -or $mouse.Y -gt $form.Bottom+12 -or $mouse.X -lt $form.Left-12 -or $mouse.X -gt $form.Right+12){$script:expanded=$false};if($script:dock -eq 'left'){$target=if($script:expanded){$screen.Left}else{$screen.Left-$form.Width+10}}else{$target=if($script:expanded){$screen.Right-$form.Width}else{$screen.Right-10}};$delta=$target-$form.Left;if($delta -ne 0){$step=[int][Math]::Sign($delta)*[Math]::Max(1,[Math]::Ceiling([Math]::Abs($delta)*0.22));$form.Left+=$step}})
   $timer.Start();[System.Windows.Forms.Application]::Run($form);$timer.Stop();$timer.Dispose()
 } finally {$mutex.ReleaseMutex();$mutex.Dispose()}
+

@@ -7,7 +7,7 @@ const token = crypto.randomBytes(24).toString('hex');
 const shutdownKey=crypto.randomBytes(32).toString('hex');
 const sessionPath=path.join(__dirname,'.notebook-session.json');
 let browser;
-const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const edge = [process.env['PROGRAMFILES(X86)'],process.env.PROGRAMFILES,process.env.LOCALAPPDATA].filter(Boolean).map(root=>path.join(root,'Microsoft','Edge','Application','msedge.exe')).find(fs.existsSync)||'msedge.exe';
 let pinned = false;
 const server = http.createServer((req, res) => {
   if (req.method === 'GET' && new URL(req.url, 'http://localhost').pathname === '/') {
