@@ -81,3 +81,13 @@ Windows 手写画板，支持笔迹、图片、文本框、可定位的注解框
 {"name":"English","version":"1.0.0","author":"示例","description":"常用工具英文名称","type":"language","config":{"labels":{"pen":"Pen","eraser":"Eraser","select":"Select","text":"Text","check":"Checklist","undo":"Undo","save":"Save PNG","preferences":"Settings","newProject":"New","openProject":"Open"}}}
 ```
 可翻译的键为以上示例中的键。缺失的翻译沿用原文；用户笔记内容不会翻译。多个同类插件同时启用时，后加载的设置覆盖同名项。禁用插件立即撤销它的界面效果；插件字体在禁用时将回退为系统字体。
+
+## 报表提醒接口
+
+在“首选项 → 小球提醒”开启或关闭提醒。浮动球运行时，每两秒检查安装目录下的 `.report-notice.json`；关闭提醒时保留等待中的通知，开启后显示。生成报表的外部程序可先把 UTF-8 JSON 写到同目录临时文件，再原子重命名为 `.report-notice.json`，内容示例：
+
+```json
+{"title":"每日信息报表","path":"C:\\Reports\\daily.pdf"}
+```
+
+浮动球弹出对话框显示标题和报表位置，用户自行打开文件。通知只保存一条；下一条应在上一条被读取后再写入，否则会覆盖。软件不负责定时收集信息，也不创建报表；浮动球必须正在运行才能显示提醒。

@@ -1,4 +1,4 @@
-Add-Type -AssemblyName System.Windows.Forms
+﻿Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $mutex = New-Object System.Threading.Mutex($false, 'Local\HandwritingNotebookFloatingBall')
 if (-not $mutex.WaitOne(0, $false)) { exit }
@@ -49,6 +49,24 @@ try {
   $form.Add_MouseUp({param($s,$e) if($e.Button -ne [System.Windows.Forms.MouseButtons]::Left){return};$script:dragging=$false;$form.Capture=$false;if(-not $script:moved){& $script:openNotebook;return};$screen=[System.Windows.Forms.Screen]::FromPoint([System.Windows.Forms.Cursor]::Position).WorkingArea;$left=[Math]::Abs($form.Left-$screen.Left);$right=[Math]::Abs($screen.Right-$form.Right);if([Math]::Min($left,$right) -le 45){if($left -le $right){$script:dock='left';$form.Left=$screen.Left}else{$script:dock='right';$form.Left=$screen.Right-$form.Width};$form.Top=[Math]::Max($screen.Top,[Math]::Min($form.Top,$screen.Bottom-$form.Height));$script:expanded=$true}else{$script:dock='none'}})
   $timer=New-Object System.Windows.Forms.Timer;$timer.Interval=16
   $timer.Add_Tick({$exitRequest=Join-Path $PSScriptRoot '.update-exit-request';if(Test-Path -LiteralPath $exitRequest){try{$request=Get-Content -LiteralPath $exitRequest -Raw -Encoding UTF8;$session=Get-Content -LiteralPath (Join-Path $PSScriptRoot '.notebook-session.json') -Raw -Encoding UTF8|ConvertFrom-Json;if($request.Trim() -eq $session.key){Remove-Item -LiteralPath $exitRequest -Force;$form.Close();return}}catch{}};if($script:dragging -or $script:dock -eq 'none' -or $menu.Visible){return};$screen=[System.Windows.Forms.Screen]::FromControl($form).WorkingArea;$mouse=[System.Windows.Forms.Cursor]::Position;$hover=$form.Bounds.Contains($mouse);if($hover){$script:expanded=$true}elseif($mouse.Y -lt $form.Top-12 -or $mouse.Y -gt $form.Bottom+12 -or $mouse.X -lt $form.Left-12 -or $mouse.X -gt $form.Right+12){$script:expanded=$false};if($script:dock -eq 'left'){$target=if($script:expanded){$screen.Left}else{$screen.Left-$form.Width+10}}else{$target=if($script:expanded){$screen.Right-$form.Width}else{$screen.Right-10}};$delta=$target-$form.Left;if($delta -ne 0){$step=[int][Math]::Sign($delta)*[Math]::Max(1,[Math]::Ceiling([Math]::Abs($delta)*0.22));$form.Left+=$step}})
-  $timer.Start();[System.Windows.Forms.Application]::Run($form);$timer.Stop();$timer.Dispose()
+  $noticeTimer=New-Object System.Windows.Forms.Timer;$noticeTimer.Interval=2000
+  $noticeTimer.Add_Tick({
+    $notice=Join-Path $PSScriptRoot '.report-notice.json';$settings=Join-Path $PSScriptRoot '.report-settings.json'
+    if(!(Test-Path -LiteralPath $notice)){return}
+    try{
+      $enabled=$true;if(Test-Path -LiteralPath $settings){$enabled=(Get-Content -LiteralPath $settings -Raw -Encoding UTF8|ConvertFrom-Json).enabled -eq $true};if(!$enabled){return}
+      $item=Get-Item -LiteralPath $notice;if($item.Length -gt 16384){return}
+      $data=Get-Content -LiteralPath $notice -Raw -Encoding UTF8|ConvertFrom-Json
+      if([string]::IsNullOrWhiteSpace([string]$data.title)){return}
+      $title=([string]$data.title);if($title.Length -gt 100){$title=$title.Substring(0,100)}
+      $location=[string]$data.path;if($location.Length -gt 500){$location=$location.Substring(0,500)}
+      Remove-Item -LiteralPath $notice -Force -ErrorAction Stop
+      $script:expanded=$true;$form.Activate();$noticeTimer.Stop()
+      $message='有新的报表：'+$title;if($location){$message+="`r`n`r`n报表位置："+$location}
+      [void][System.Windows.Forms.MessageBox]::Show($message,'手写笔记本 · 报表提醒',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)
+      $noticeTimer.Start()
+    }catch{}
+  })
+  $timer.Start();$noticeTimer.Start();[System.Windows.Forms.Application]::Run($form);$noticeTimer.Stop();$noticeTimer.Dispose();$timer.Stop();$timer.Dispose()
 } finally {$mutex.ReleaseMutex();$mutex.Dispose()}
 

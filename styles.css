@@ -44,3 +44,25 @@ body[data-ui-theme=dark][data-toolbar-style=material] .tabs button[aria-selected
 .update-progress{display:flex;flex:1 1 100%;align-items:center;gap:10px;font-size:12px}.update-progress[hidden]{display:none}.update-progress progress{width:160px;max-width:45%;accent-color:#548367}.update-progress span{white-space:nowrap}body[data-ui-theme=dark] .update-progress{color:#e4eee5}
 .plugin-card{border:1px solid #d6dfd4;border-radius:8px;padding:10px;margin:8px 0}.plugin-card label{display:flex;gap:8px;align-items:center}.plugin-card p{margin:5px 0}.plugin-reduced-motion *, .plugin-reduced-motion *::before,.plugin-reduced-motion *::after{animation-duration:0.001ms!important;transition-duration:0.001ms!important}
 .top{background:var(--plugin-toolbar-bg,#fff)}.tabs button[aria-selected=true]{background:var(--plugin-tab-active,#e2eee6)}.top .plugin-tool-action{background:var(--plugin-button-bg,#eef3ef);color:var(--plugin-button-color,#294c3a)}
+
+/* Toolbar redesign: clear navigation row and a separate tool surface. */
+body:not([data-toolbar-style=original]) .top{padding:10px 18px;gap:20px;align-items:stretch;box-shadow:0 3px 18px #16291c0c}
+body:not([data-toolbar-style=original]) .brand{min-width:185px;align-self:center}
+body:not([data-toolbar-style=original]) .toolbar{gap:0;justify-content:center}
+body:not([data-toolbar-style=original]) .tabs{gap:4px;flex-wrap:nowrap;overflow-x:auto;padding:0 5px}
+body:not([data-toolbar-style=original]) .tabs button{min-width:72px;min-height:38px;white-space:nowrap;font-weight:600}
+body:not([data-toolbar-style=original]) .tools{flex:0 1 auto;min-height:64px;padding:9px 10px;border:1px solid #dfe6de;border-radius:12px;overflow:auto;background:#fffefa}
+body:not([data-toolbar-style=original]) .group-items{gap:6px;align-items:center}
+body:not([data-toolbar-style=original]) .top .pen,body:not([data-toolbar-style=original]) .top .save{min-height:42px;font-weight:500;transition:background .15s,box-shadow .15s}
+body:not([data-toolbar-style=original]) .top .pen:hover{box-shadow:inset 0 0 0 2px #779b8060}
+body[data-toolbar-style=paper] .tools{background:#fdfcf7;border-color:#e6e5da}
+body[data-toolbar-style=fluent] .tools{background:#fff;border-color:#d8e1eb;border-radius:6px}
+body[data-toolbar-style=fluent] .tabs button{min-width:80px}
+body[data-toolbar-style=material] .tools{background:#faf9ff;border-color:#e4ddf5;border-radius:18px}
+body[data-toolbar-style=material] .tabs{gap:8px;padding-bottom:6px}
+body[data-ui-theme=dark]:not([data-toolbar-style=original]) .tools{background:#202a25;border-color:#44544a}
+body[data-ui-theme=dark][data-toolbar-style=fluent] .tools{background:#202b37;border-color:#3a4c5f}
+body[data-ui-theme=dark][data-toolbar-style=material] .tools{background:#282437;border-color:#4d4364}
+.export-control{display:flex;align-items:center;gap:5px;font-size:12px;color:inherit;white-space:nowrap}
+@media(max-width:700px){body:not([data-toolbar-style=original]) .top{gap:8px;padding:8px}body:not([data-toolbar-style=original]) .brand{min-width:40px}body:not([data-toolbar-style=original]) .brand>div:not(.logo){display:none}body:not([data-toolbar-style=original]) .tabs button{min-width:58px}}
+.coffee-entry{margin-top:30px}.settings-content .coffee-button{display:inline-flex;align-items:center;gap:9px;padding:12px 20px;border:1px solid #e0d3b6;border-radius:12px;background:#f8efdf;color:#714b27;font-weight:600}.coffee-button span,.coffee-icon{font-size:27px}.coffee-panel{max-width:360px;margin:18px auto 0;padding:22px;border:1px solid #e9dfcd;border-radius:14px;background:#fffaf0}.coffee-panel[hidden],.coffee-button[hidden]{display:none}.coffee-panel p{margin:8px 0}.coffee-panel button{margin-top:10px}body[data-ui-theme=dark] .coffee-panel{background:#333127;border-color:#615949;color:#f2ede1}body[data-ui-theme=dark] .settings-content .coffee-button{background:#514433;color:#fff0d0;border-color:#806b4b}

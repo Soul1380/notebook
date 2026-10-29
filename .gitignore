@@ -8,3 +8,6 @@
 
 .update-exit-request
 build/
+
+.report-settings.json
+.report-notice.json

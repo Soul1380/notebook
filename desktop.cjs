@@ -22,6 +22,13 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && staticFiles.has(req.url)) {
     const name=req.url.slice(1);res.writeHead(200, {'Content-Type':name.endsWith('.css')?'text/css; charset=utf-8':name.endsWith('.ico')?'image/x-icon':'text/javascript; charset=utf-8','Cache-Control':'no-store'});fs.createReadStream(path.join(__dirname,name)).pipe(res);return;
   }
+  if(req.url==='/report-settings'){
+    if(req.headers['x-notebook-token']!==token||(req.method==='POST'&&req.headers.origin!==`http://127.0.0.1:${server.address().port}`)||!['GET','POST'].includes(req.method)){res.writeHead(403);res.end();return}
+    const file=path.join(__dirname,'.report-settings.json');
+    const reply=data=>{res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data))};
+    if(req.method==='GET'){try{reply({enabled:JSON.parse(fs.readFileSync(file,'utf8')).enabled===true})}catch(e){reply({enabled:true})}return}
+    let body='';req.on('data',chunk=>{body+=chunk;if(body.length>1024)req.destroy()});req.on('end',()=>{try{const data=JSON.parse(body);if(typeof data.enabled!=='boolean')throw Error();fs.writeFileSync(file,JSON.stringify({enabled:data.enabled}),'utf8');reply({enabled:data.enabled})}catch(e){res.writeHead(400);res.end()}});return;
+  }
   if(['/plugins','/plugins/open'].includes(req.url)){
     const opening=req.url==='/plugins/open';
     if(req.headers['x-notebook-token']!==token||(opening&&(req.method!=='POST'||req.headers.origin!==`http://127.0.0.1:${server.address().port}`))||(!opening&&req.method!=='GET')){res.writeHead(403);res.end();return}
