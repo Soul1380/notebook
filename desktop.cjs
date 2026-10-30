@@ -70,10 +70,11 @@ const server = http.createServer((req, res) => {
     const readyFile=path.join(__dirname,'.update-cache','helper-ready'),resultFile=path.join(__dirname,'.update-cache','update-result.json');
     try{for(const f of [readyFile,resultFile])if(fs.existsSync(f))fs.unlinkSync(f)}catch(e){reply(500,{message:'无法准备更新日志'});return}
     installingUpdate=true;
-    let helper,answered=false;
+    let helper,answered=false,helperLog;
+    try{helperLog=fs.openSync(path.join(__dirname,'.update-cache','helper-output.log'),'w')}catch(e){installingUpdate=false;reply(500,{message:'无法创建更新日志'});return}
     const fail=message=>{if(answered)return;answered=true;installingUpdate=false;if(helper&&!helper.killed)helper.kill();reply(500,{message})};
     try{
-      helper=spawn('powershell.exe',args,{detached:true,windowsHide:true,stdio:'ignore'});
+      helper=spawn('powershell.exe',args,{detached:true,windowsHide:true,stdio:['ignore',helperLog,helperLog]});fs.closeSync(helperLog);helperLog=undefined;
       helper.once('error',()=>fail('无法启动更新程序'));
       helper.once('exit',()=>{if(!answered)fail('更新程序启动失败，请检查更新日志')});
       const started=Date.now();
@@ -87,7 +88,7 @@ const server = http.createServer((req, res) => {
           setTimeout(()=>{if(browser&&browser.pid&&browser.exitCode===null)execFile('taskkill.exe',['/PID',String(browser.pid),'/T','/F'],{windowsHide:true,timeout:5000},()=>{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()});else{server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref()}},700);
         }catch(e){clearInterval(waitReady);fail('无法准备重启：'+e.message)}
       },100);
-    }catch(e){fail('无法启动更新程序')};return;
+    }catch(e){if(helperLog!==undefined)fs.closeSync(helperLog);fail('无法启动更新程序：'+e.message)};return;
   }
   if(req.url==='/shutdown'){
     if(req.method!=='POST'||req.headers['x-notebook-shutdown']!==shutdownKey){res.writeHead(403);res.end();return}
@@ -122,7 +123,7 @@ server.listen(17683, '127.0.0.1', () => {
   fs.writeFileSync(sessionPath,JSON.stringify({key:shutdownKey}),'utf8');
   const url = `http://127.0.0.1:${server.address().port}/?token=${token}`;
   const geometry=process.argv.slice(2).filter(arg=>/^--(?:position|size)=-?\d+,-?\d+$/.test(arg)).map(arg=>arg.replace('--position=','--window-position=').replace('--size=','--window-size='));
-  browser = spawn(edge, [`--app=${url}`, '--new-window', ...geometry, `--user-data-dir=${path.join(__dirname,'.browser-data')}`], {detached:false, stdio:'ignore'});
+  browser = spawn(edge, [`--app=${url}`, '--new-window', ...(process.argv.includes('--preload')?['--start-minimized']:[]), ...geometry, `--user-data-dir=${path.join(__dirname,'.browser-data')}`], {detached:false, stdio:'ignore'});
   browser.once('spawn',()=>{const iconHelper=spawn('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'window.ps1'),'icon','false'],{windowsHide:true,stdio:'ignore'});iconHelper.on('error',()=>{});});
   browser.on('error', err => {console.error('无法启动 Edge:',err.message);server.close()});
   browser.on('exit', () => server.close());

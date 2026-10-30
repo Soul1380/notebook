@@ -7,12 +7,12 @@ $archivePath=[IO.Path]::GetFullPath($Archive)
 $cachePath=[IO.Path]::GetFullPath((Join-Path $rootPath '.update-cache')).TrimEnd([IO.Path]::DirectorySeparatorChar)+[IO.Path]::DirectorySeparatorChar
 $progressWindow=$null
 function Set-UpdateProgress([int]$value,[string]$message){if($null -ne $progressWindow){$progressBar.Value=[Math]::Max(0,[Math]::Min(100,$value));$progressLabel.Text=$message;[System.Windows.Forms.Application]::DoEvents()}}
+try {
 if(-not $NoRestart){
   $progressWindow=New-Object System.Windows.Forms.Form;$progressWindow.Text='手写笔记本更新';$progressWindow.StartPosition='CenterScreen';$progressWindow.ClientSize=New-Object System.Drawing.Size(440,130);$progressWindow.FormBorderStyle='FixedDialog';$progressWindow.ControlBox=$false;$progressWindow.TopMost=$true
   $progressBar=New-Object System.Windows.Forms.ProgressBar;$progressBar.SetBounds(24,24,390,22);$progressWindow.Controls.Add($progressBar)
   $progressLabel=New-Object System.Windows.Forms.Label;$progressLabel.SetBounds(24,60,390,45);$progressLabel.Text='正在准备更新…';$progressWindow.Controls.Add($progressLabel);$progressWindow.Show();[System.Windows.Forms.Application]::DoEvents()
 }
-try {
   Set-UpdateProgress 5 '正在校验更新包…'
   if(-not $archivePath.StartsWith($cachePath,[StringComparison]::OrdinalIgnoreCase)){throw '更新包路径无效'}
   if($Sha256 -notmatch '^[0-9a-fA-F]{64}$' -or (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash -ne $Sha256){throw '更新包校验失败'}

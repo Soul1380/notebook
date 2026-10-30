@@ -2,7 +2,7 @@ let lastMouse={x:120,y:120};document.addEventListener('pointermove',e=>{const r=
 
 
 
-const taskList=document.querySelector('#taskList'),taskInfo=document.querySelector('#taskInfo');let taskSignature='',taskLoading=false;async function updateTasks(){if(location.protocol==='file:'){taskInfo.textContent='请在桌面版使用';return}if(taskLoading||document.hidden)return;taskLoading=true;try{const res=await fetch('/tasks',{headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});if(!res.ok)throw Error();const items=await res.json();const signature=JSON.stringify(items);if(signature!==taskSignature){taskSignature=signature;taskList.replaceChildren();for(const item of items){const button=document.createElement('button');button.className='task-item';button.title=item.title;button.setAttribute('aria-label',item.title);if(item.icon){const img=document.createElement('img');img.src=item.icon;img.alt='';button.append(img)}else button.textContent='▣';button.onclick=async()=>{try{const response=await fetch('/tasks/activate',{method:'POST',headers:{'Content-Type':'application/json','X-Notebook-Token':new URLSearchParams(location.search).get('token')},body:JSON.stringify({id:item.id})});if(!response.ok)throw Error();}catch(e){taskInfo.textContent='无法切换窗口'}};taskList.append(button)}}taskInfo.textContent=items.length?'':'没有可切换的窗口'}catch(e){taskInfo.textContent='窗口列表不可用'}finally{taskLoading=false}}updateTasks();setInterval(updateTasks,8000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateTasks()});
+const taskList=document.querySelector('#taskList'),taskInfo=document.querySelector('#taskInfo');let taskSignature='',taskLoading=false;async function updateTasks(){if(location.protocol==='file:'){taskInfo.textContent='请在桌面版使用';return}if(taskLoading||document.hidden)return;taskLoading=true;try{const res=await fetch('/tasks',{headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});if(!res.ok)throw Error();const items=await res.json();const signature=JSON.stringify(items);if(signature!==taskSignature){taskSignature=signature;taskList.replaceChildren();for(const item of items){const button=document.createElement('button');button.className='task-item';button.title=item.title;button.setAttribute('aria-label',item.title);if(item.icon){const img=document.createElement('img');img.src=item.icon;img.alt='';img.draggable=false;button.append(img)}else button.textContent='▣';button.onclick=async()=>{try{const response=await fetch('/tasks/activate',{method:'POST',headers:{'Content-Type':'application/json','X-Notebook-Token':new URLSearchParams(location.search).get('token')},body:JSON.stringify({id:item.id})});if(!response.ok)throw Error();}catch(e){taskInfo.textContent='无法切换窗口'}};taskList.append(button)}}taskInfo.textContent=items.length?'':'没有可切换的窗口'}catch(e){taskInfo.textContent='窗口列表不可用'}finally{taskLoading=false}}updateTasks();setInterval(updateTasks,8000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateTasks()});
 
 
 window.notebookLoad(100,'准备完成');requestAnimationFrame(()=>setTimeout(()=>{const splash=document.getElementById('splash');splash.classList.add('done');setTimeout(()=>splash.remove(),250)},180));
@@ -87,3 +87,12 @@ document.querySelector('#pluginSearch').addEventListener('input',renderPlugins);
 document.querySelector('#pluginRefresh').onclick=refreshPlugins;
 document.querySelector('#pluginOpen').onclick=()=>pluginRequest('/plugins/open','POST').catch(()=>alert('无法打开插件目录'));
 if(location.protocol!=='file:')refreshPlugins();
+
+// Prevent browser-wide selection of UI chrome while preserving editable fields and custom shortcuts.
+document.addEventListener('keydown',e=>{
+  if(!e.ctrlKey||e.altKey||e.metaKey||e.shiftKey||e.key.toLowerCase()!=='a')return;
+  const target=e.target;
+  if(target instanceof Element && (target.closest('textarea,[contenteditable="true"]')||target.matches('input:not([type=range]):not([type=checkbox]):not([type=radio])')))return;
+  if(Object.values(shortcuts).includes('Ctrl+A'))return;
+  e.preventDefault();
+});

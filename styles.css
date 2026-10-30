@@ -66,3 +66,13 @@ body[data-ui-theme=dark][data-toolbar-style=material] .tools{background:#282437;
 .export-control{display:flex;align-items:center;gap:5px;font-size:12px;color:inherit;white-space:nowrap}
 @media(max-width:700px){body:not([data-toolbar-style=original]) .top{gap:8px;padding:8px}body:not([data-toolbar-style=original]) .brand{min-width:40px}body:not([data-toolbar-style=original]) .brand>div:not(.logo){display:none}body:not([data-toolbar-style=original]) .tabs button{min-width:58px}}
 .coffee-entry{margin-top:30px}.settings-content .coffee-button{display:inline-flex;align-items:center;gap:9px;padding:12px 20px;border:1px solid #e0d3b6;border-radius:12px;background:#f8efdf;color:#714b27;font-weight:600}.coffee-button span,.coffee-icon{font-size:27px}.coffee-panel{max-width:360px;margin:18px auto 0;padding:22px;border:1px solid #e9dfcd;border-radius:14px;background:#fffaf0}.coffee-panel[hidden],.coffee-button[hidden]{display:none}.coffee-panel p{margin:8px 0}.coffee-panel button{margin-top:10px}body[data-ui-theme=dark] .coffee-panel{background:#333127;border-color:#615949;color:#f2ede1}body[data-ui-theme=dark] .settings-content .coffee-button{background:#514433;color:#fff0d0;border-color:#806b4b}
+
+/* Toolbar, branding and taskbar are controls, not selectable document text. */
+.top, .taskbar { user-select: none; -webkit-user-select: none; }
+.top input, .top textarea { user-select: text; -webkit-user-select: text; }
+.task-item img { -webkit-user-drag: none; }
+
+/* Application chrome is not document content; editable fields opt in. */
+body { user-select:none; -webkit-user-select:none; }
+input:not([type=range]):not([type=checkbox]):not([type=radio]), textarea, [contenteditable="true"] { user-select:text; -webkit-user-select:text; }
+select, option, button, .status, .shortcut-hud { user-select:none; -webkit-user-select:none; }
