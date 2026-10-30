@@ -11,13 +11,13 @@ function setup({busy=false,storageFails=false,installFails=false}={}){
   vm.runInContext('const updateStatus='+source,context);
   return {context,saved,requests,run:code=>vm.runInContext(code,context)};
 }
-test('idle update saves editable canvas and view before installation',async()=>{
+test('installation starts without creating a snapshot',async()=>{
   const s=setup();await s.run('installReadyUpdate()');
-  assert.deepEqual(JSON.parse(s.saved.get('notebook-update-session-v1')),{strokes:s.context.strokes,objects:s.context.objects,view:s.context.view});
+  assert.equal(s.saved.has('notebook-update-session-v1'),false);
   assert.equal(s.context.document.body.inert,true);assert.ok(s.requests.includes('/updates/install'));
   await s.run('installReadyUpdate()');assert.equal(s.requests.filter(x=>x==='/updates/install').length,1);
 });
 test('active drawing postpones installation',async()=>{const s=setup({busy:true});await s.run('installReadyUpdate()');assert.equal(s.saved.size,0);assert.ok(!s.requests.includes('/updates/install'))});
-test('failed canvas backup prevents shutdown',async()=>{const s=setup({storageFails:true});await s.run('installReadyUpdate()');assert.ok(!s.requests.includes('/updates/install'));assert.equal(s.context.document.body.inert,false)});
-test('failed installer request restores editing',async()=>{const s=setup({installFails:true});await s.run('installReadyUpdate()');assert.equal(s.context.document.body.inert,false);assert.ok(s.saved.has('notebook-update-session-v1'))});
+test('storage failure does not prevent installation',async()=>{const s=setup({storageFails:true});await s.run('installReadyUpdate()');assert.ok(s.requests.includes('/updates/install'))});
+test('failed installer request restores editing',async()=>{const s=setup({installFails:true});await s.run('installReadyUpdate()');assert.equal(s.context.document.body.inert,false);assert.equal(s.saved.has('notebook-update-session-v1'),false)});
 test('ready update never installs without clicking',async()=>{const s=setup();s.run("displayUpdate({phase:'ready',version:'v1.0.2'})");await new Promise(resolve=>setImmediate(resolve));assert.ok(!s.requests.includes('/updates/install'))});

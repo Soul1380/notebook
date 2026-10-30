@@ -34,8 +34,6 @@ async function installReadyUpdate(){
   if(updateInstalling||action||editor||document.querySelector('.annotation-name'))return;
   updateInstalling=true;updateAttempted=true;installUpdate.disabled=true;
   try{
-    // A dedicated snapshot must succeed before the backend is allowed to close the window.
-    localStorage.setItem('notebook-update-session-v1',JSON.stringify({strokes,objects,view}));
     document.body.inert=true;
     const data=await updateRequest('/install','POST');updateStatus.textContent=data.message;
   }catch(e){
@@ -60,8 +58,7 @@ async function checkUpdate(){updateStatus.textContent='正在检查更新…';tr
 document.querySelector('#checkUpdate').onclick=()=>{document.querySelector('#prefs').click();document.querySelector('#settingsUI').click();checkUpdate()};
 document.querySelector('#settingsCheckUpdate').onclick=checkUpdate;
 installUpdate.onclick=()=>{if(editor)finishText();installReadyUpdate()};
-// The app has loaded successfully; normal launches should retain their blank-canvas behavior.
-localStorage.removeItem('notebook-update-session-v1');
+
 if(location.protocol!=='file:'){setInterval(refreshUpdate,2000);refreshUpdate()}else displayUpdate({message:'请在安装版中使用自动更新'});
 // Declarative plugins run through a restricted host API; no plugin JavaScript is executed.
 let availablePlugins=[],pluginEnabled={};

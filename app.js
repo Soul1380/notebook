@@ -6,15 +6,6 @@ const canvas=document.querySelector('#canvas'),area=document.querySelector('#wor
 let strokes=[],objects=[],selected=null,tool='pen',color='#26342f',view={x:0,y:0,scale:1},action=null,history=[],editor=null,folder=null;
 const width=3, cache=new Map();
 // Start with an empty canvas. Previous automatic backup remains available until new edits are made.
-// An automatic update is the exception: resume the exact canvas saved before restart.
-try {
-  const saved=JSON.parse(localStorage.getItem('notebook-update-session-v1')||'null');
-  if(saved&&Array.isArray(saved.strokes)&&Array.isArray(saved.objects)){
-    strokes=saved.strokes;objects=saved.objects;
-    if(saved.view&&Number.isFinite(saved.view.x)&&Number.isFinite(saved.view.y)&&Number.isFinite(saved.view.scale)&&saved.view.scale>0)view=saved.view;
-  }
-}catch(e){console.error('无法恢复更新前的画布',e)}
-
 function snapshot(){history.push(JSON.stringify({strokes,objects}));if(history.length>60)history.shift()}
 function persist(){renderAnnotations();try{localStorage.setItem('notebook-strokes-v1',JSON.stringify(strokes));localStorage.setItem('notebook-objects-v1',JSON.stringify(objects))}catch(e){alert('本地存储空间不足，请立即保存工程文件。')}}
 function undo(){if(action||editor||!history.length)return;({strokes,objects}=JSON.parse(history.pop()));selected=null;persist();draw()}
