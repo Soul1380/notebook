@@ -1,6 +1,6 @@
 // All keyboard actions live in one registry so the settings and dispatch stay in sync.
 const shortcutGroups=[
-  {name:'绘制与编辑',actions:[['pen','画笔','P'],['eraser','擦除','E'],['select','选择','V'],['text','文本框','T'],['annotation','注解框','A'],['undo','撤回','Ctrl+Z'],['delete','删除选中对象','Delete'],['eraseSmaller','缩小橡皮擦',''],['eraseLarger','放大橡皮擦','']]},
+  {name:'绘制与编辑',actions:[['pen','画笔','P'],['eraser','擦除','E'],['select','选择','V'],['text','文本框','T'],['annotation','注解框','A'],['undo','撤回','Ctrl+Z'],['delete','删除选中对象','Delete']]},
   {name:'图形',actions:[['shapeLine','直线',''],['shapeRect','长方形',''],['shapeSquare','正方形',''],['shapeEllipse','椭圆',''],['shapeCircle','圆形',''],['shapeTriangle','三角形','']]},
   {name:'颜色',actions:[['colors','颜色面板',''],['colorPicker','精细选色','']]},
   {name:'图片',actions:[['insertImage','插入图片',''],['paste','粘贴图片','Ctrl+V'],['larger','放大图片',''],['smaller','缩小图片','']]},
@@ -8,16 +8,16 @@ const shortcutGroups=[
   {name:'查询与视图',actions:[['quick','快捷查询','Shift+F'],['annotationSearch','查找注解',''],['zoomIn','画布放大',''],['zoomOut','画布缩小',''],['zoomReset','画布缩放复位','']]},
   {name:'窗口与设置',actions:[['preferences','首选项',''],['fullscreen','全屏',''],['minimize','最小化',''],['maximize','最大化',''],['pin','置顶',''],['directory','打开软件所在目录','']]}
 ];
-// Discover every toolbar control and tab, so future additions inherit shortcut support.
+// Register actions and tabs only; value adjustments and color swatches are not shortcut actions.
 const toolbarActionTargets=new Map();
 const existingIds=new Set(shortcutGroups.flatMap(g=>g.actions.map(a=>a[0])));
 const extraActions=[];
-for(const [i,element] of [...document.querySelectorAll('.top button,.top select,.top input:not([type=file])')].entries()){
+for(const [i,element] of [...document.querySelectorAll('.top button:not(.color):not(#textBold):not(#textUnderline)')].entries()){
  const id='toolbar:'+(element.id||element.dataset.window||('tab-'+i));toolbarActionTargets.set(id,element);
  const label=element.getAttribute('aria-label')||element.title||element.textContent.trim()||element.id;
  extraActions.push([id,label.slice(0,60)||'工具 '+i,'']);
 }
-shortcutGroups.push({name:'工具栏全部控件及选项卡',actions:extraActions});
+shortcutGroups.push({name:'工具栏按钮及选项卡',actions:extraActions});
 const radialDefault=['pen','eraser','select','text','group:图形','group:颜色','undo','group:文件'];
 let radialConfig=[...radialDefault];
 try{const stored=JSON.parse(localStorage.getItem('notebook-radial-v1')||'null');if(Array.isArray(stored)&&stored.length>=2&&stored.length<=12)radialConfig=stored}catch(e){}

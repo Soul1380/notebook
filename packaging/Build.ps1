@@ -32,7 +32,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $payload=Join-Path (Split-Path -Parent $StagePath) 'NotebookPayload.zip'
 if(Test-Path -LiteralPath $payload){Remove-Item -LiteralPath $payload -Force}
 [System.IO.Compression.ZipFile]::CreateFromDirectory($StagePath,$payload,[System.IO.Compression.CompressionLevel]::Optimal,$false)
-& $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll "/win32icon:$icon" "/resource:$payload,NotebookPayload.zip" "/out:$InstallerPath" (Join-Path $PSScriptRoot 'Installer.cs')
+& $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll "/win32icon:$icon" "/resource:$payload,NotebookPayload.zip" "/resource:$(Join-Path $project 'plugins\starter-template\manifest.json'),StarterManifest" "/resource:$(Join-Path $project 'plugins\starter-template\README.md'),StarterReadme" "/out:$InstallerPath" (Join-Path $PSScriptRoot 'Installer.cs')
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed'}
 $updatePath=Join-Path (Split-Path -Parent $InstallerPath) 'HandwritingNotebook-update.zip'
 if(Test-Path -LiteralPath $updatePath){Remove-Item -LiteralPath $updatePath -Force}

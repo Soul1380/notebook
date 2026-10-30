@@ -80,3 +80,7 @@ select, option, button, .status, .shortcut-hud { user-select:none; -webkit-user-
 .vertical-tool-list .radial-actions{display:flex;flex-direction:column;align-items:stretch}.vertical-tool-list .radial-actions button{text-align:left}.vertical-tool-list{width:230px}.radial-button small{display:block;max-width:56px;overflow-wrap:anywhere}#radialSettingRows select{max-width:65%;min-width:0}
 
 .plugin-card{display:flex;gap:12px;align-items:flex-start}.plugin-icon{width:46px;height:46px;flex:0 0 46px;object-fit:contain;border-radius:9px;user-select:none;-webkit-user-drag:none}.plugin-content{min-width:0;flex:1}.plugin-content p{overflow-wrap:anywhere}.plugin-directory-path{overflow-wrap:anywhere}
+
+/* Dialogs are top-layer elements: enforce the UI selection policy explicitly. */
+.settings-dialog, .settings-dialog *, .picker-dialog, .picker-dialog * { user-select:none; -webkit-user-select:none; }
+.settings-dialog input:not([type=range]):not([type=checkbox]):not([type=radio]), .settings-dialog textarea, .settings-dialog [contenteditable="true"], .picker-dialog input:not([type=range]):not([type=checkbox]):not([type=radio]) { user-select:text; -webkit-user-select:text; }
