@@ -25,12 +25,12 @@ jobs:
           gh release view "v$v" *> $null
           if ($LASTEXITCODE -eq 0) { "publish=false" >> $env:GITHUB_OUTPUT } else { "publish=true" >> $env:GITHUB_OUTPUT }
           exit 0
-      - name: Build installer and update archive
+      - name: Build installer
         if: steps.version.outputs.publish == 'true'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build | Out-Null
-          ./packaging/Build.ps1 -NodePath (Get-Command node).Source -StagePath "$PWD/build/stage" -InstallerPath "$PWD/build/HandwritingNotebookSetup.exe" -UpdatePackagePath "$PWD/build/HandwritingNotebook-update.zip"
+          ./packaging/Build.ps1 -NodePath (Get-Command node).Source -StagePath "$PWD/build/stage" -InstallerPath "$PWD/build/HandwritingNotebookSetup.exe"
       - name: Publish release
         if: steps.version.outputs.publish == 'true'
         shell: pwsh

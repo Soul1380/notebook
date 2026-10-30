@@ -23,43 +23,6 @@ window.addEventListener('pointerup',e=>{if(!radialGesture||e.pointerId!==radialG
 
 renderAnnotations();
 
-const updateStatus=document.querySelector('#updateStatus'),installUpdate=document.querySelector('#installUpdate');
-let updateInstalling=false,updateAttempted=false;
-async function updateRequest(endpoint,method='GET'){
-  if(location.protocol==='file:')return {phase:'unavailable',message:'请在安装版中使用'};
-  const r=await fetch('/updates'+endpoint,{method,headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});
-  const data=await r.json();if(!r.ok)throw Error(data.message||'无法连接更新服务');return data;
-}
-async function installReadyUpdate(){
-  if(updateInstalling||action||editor||document.querySelector('.annotation-name'))return;
-  updateInstalling=true;updateAttempted=true;installUpdate.disabled=true;
-  try{
-    document.body.inert=true;
-    const data=await updateRequest('/install','POST');updateStatus.textContent=data.message;
-  }catch(e){
-    document.body.inert=false;updateInstalling=false;installUpdate.disabled=false;
-    updateStatus.textContent='更新未完成：'+e.message+'，请点击安装重试。';
-  }
-}
-function formatDownloadSize(bytes){if(bytes>=1048576)return (bytes/1048576).toFixed(1)+' MB';if(bytes>=1024)return (bytes/1024).toFixed(1)+' KB';return Math.round(bytes)+' B'}
-function displayUpdate(data){
-  const progressWrap=document.querySelector('#updateProgressWrap'),progress=document.querySelector('#updateProgress'),progressText=document.querySelector('#updateProgressText');
-  progressWrap.hidden=data.phase!=='downloading';
-  if(data.phase==='downloading'&&data.total>0){const percent=Math.min(100,Math.max(0,data.downloaded/data.total*100));progress.value=percent;progressText.textContent=percent.toFixed(1)+'% · '+formatDownloadSize(data.downloaded)+' / '+formatDownloadSize(data.total)+' · '+formatDownloadSize(data.bytesPerSecond||0)+'/s'}
-  if(updateInstalling)return;
-  const current=data.currentVersion?'当前版本 '+data.currentVersion+' · ':'';
-  updateStatus.textContent=current+(data.message||'检查失败');installUpdate.hidden=data.phase!=='ready';
-  if(data.phase==='ready'){
-    updateStatus.textContent=current+(updateAttempted?'更新未完成，请点击安装重试':'新版本 '+data.version+' 已就绪，点击安装并重启');
-  }
-}
-async function refreshUpdate(){try{displayUpdate(await updateRequest(''))}catch(e){if(!updateInstalling)updateStatus.textContent='更新服务不可用，将自动重试'}}
-async function checkUpdate(){updateStatus.textContent='正在检查更新…';try{displayUpdate(await updateRequest('/check','POST'))}catch(e){updateStatus.textContent=e.message}}
-document.querySelector('#checkUpdate').onclick=()=>{document.querySelector('#prefs').click();document.querySelector('#settingsUI').click();checkUpdate()};
-document.querySelector('#settingsCheckUpdate').onclick=checkUpdate;
-installUpdate.onclick=()=>{if(editor)finishText();installReadyUpdate()};
-
-if(location.protocol!=='file:'){setInterval(refreshUpdate,2000);refreshUpdate()}else displayUpdate({message:'请在安装版中使用自动更新'});
 // Declarative plugins run through a restricted host API; no plugin JavaScript is executed.
 let availablePlugins=[],pluginEnabled={};
 try{pluginEnabled=JSON.parse(localStorage.getItem('notebook-plugins-v1')||'{}')||{}}catch(e){}
@@ -96,3 +59,5 @@ document.addEventListener('keydown',e=>{
   if(Object.values(shortcuts).includes('Ctrl+A'))return;
   e.preventDefault();
 });
+
+document.querySelector('#launchUpdater').onclick=async()=>{const status=document.querySelector('#updaterStatus');try{const r=await fetch('/launch-updater',{method:'POST',headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});if(!r.ok)throw Error();status.textContent='更新程序已打开'}catch(e){status.textContent='无法启动更新程序，请使用安装版'}};

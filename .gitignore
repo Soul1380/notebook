@@ -11,3 +11,5 @@ build/
 
 .report-settings.json
 .report-notice.json
+
+crash-logs/

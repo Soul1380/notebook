@@ -1,8 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][string]$NodePath,
   [Parameter(Mandatory=$true)][string]$StagePath,
-  [Parameter(Mandatory=$true)][string]$InstallerPath,
-  [string]$UpdatePackagePath
+  [Parameter(Mandatory=$true)][string]$InstallerPath
 )
 $ErrorActionPreference='Stop'
 $project=Split-Path -Parent $PSScriptRoot
@@ -10,8 +9,8 @@ $compiler=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if(!(Test-Path -LiteralPath $compiler)){throw 'C# compiler not found'}
 if(!(Test-Path -LiteralPath $NodePath)){throw 'Node runtime not found'}
 New-Item -ItemType Directory -Force -Path $StagePath | Out-Null
-$sourceFiles=@('index.html','styles.css','app.js','preferences.js','colors.js','files.js','interaction.js','desktop.cjs','floating.ps1','tasks.ps1','window.ps1','README.md','notebook.ico','updater.cjs','apply-update.ps1','version.json','update-config.json')
-$allowed=@($sourceFiles)+@('HandwritingNotebook.exe','HandwritingNotebookBackend.exe','Uninstall.exe')
+$sourceFiles=@('index.html','styles.css','app.js','preferences.js','colors.js','files.js','interaction.js','desktop.cjs','floating.ps1','tasks.ps1','window.ps1','README.md','notebook.ico','version.json')
+$allowed=@($sourceFiles)+@('HandwritingNotebook.exe','HandwritingNotebookBackend.exe','Uninstall.exe','Updater.exe')
 $unexpected=@(Get-ChildItem -LiteralPath $StagePath -Force | Where-Object { $_.Name -notin $allowed -or $_.PSIsContainer })
 if($unexpected.Count -gt 0){throw 'Build stage contains unexpected files; choose an empty staging folder.'}
 foreach($name in $sourceFiles){Copy-Item -LiteralPath (Join-Path $project $name) -Destination (Join-Path $StagePath $name) -Force}
@@ -22,6 +21,8 @@ $launcher=Join-Path $StagePath 'HandwritingNotebook.exe'
 if($LASTEXITCODE -ne 0){throw 'Launcher compilation failed'}
 & $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll "/win32icon:$icon" "/out:$(Join-Path $StagePath 'Uninstall.exe')" (Join-Path $PSScriptRoot 'Uninstall.cs')
 if($LASTEXITCODE -ne 0){throw 'Uninstaller compilation failed'}
+& $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll "/win32icon:$icon" "/out:$(Join-Path $StagePath 'Updater.exe')" (Join-Path $PSScriptRoot 'Updater.cs')
+if($LASTEXITCODE -ne 0){throw 'Updater compilation failed'}
 # Embed the uninstaller in an existing script so versions with the old update allowlist can upgrade.
 $uninstallBytes=[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $StagePath 'Uninstall.exe')))
 $bootstrap='$uninstaller=Join-Path $PSScriptRoot ''Uninstall.exe'';if(!(Test-Path -LiteralPath $uninstaller)){[IO.File]::WriteAllBytes($uninstaller,[Convert]::FromBase64String('''+$uninstallBytes+'''))}'
@@ -33,10 +34,8 @@ if(Test-Path -LiteralPath $payload){Remove-Item -LiteralPath $payload -Force}
 [System.IO.Compression.ZipFile]::CreateFromDirectory($StagePath,$payload,[System.IO.Compression.CompressionLevel]::Optimal,$false)
 & $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll "/win32icon:$icon" "/resource:$payload,NotebookPayload.zip" "/out:$InstallerPath" (Join-Path $PSScriptRoot 'Installer.cs')
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed'}
-if($UpdatePackagePath){
-  if(Test-Path -LiteralPath $UpdatePackagePath){Remove-Item -LiteralPath $UpdatePackagePath -Force}
-  $updateNames=@($sourceFiles | Where-Object {$_ -ne 'update-config.json'})+@('HandwritingNotebook.exe','HandwritingNotebookBackend.exe')
-  $stream=[IO.File]::Open($UpdatePackagePath,[IO.FileMode]::CreateNew)
-  try{$zip=New-Object IO.Compression.ZipArchive($stream,[IO.Compression.ZipArchiveMode]::Create,$false);try{foreach($name in $updateNames){[void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,(Join-Path $StagePath $name),$name,[IO.Compression.CompressionLevel]::Optimal)}}finally{$zip.Dispose()}}finally{$stream.Dispose()}
-}
+$updatePath=Join-Path (Split-Path -Parent $InstallerPath) 'HandwritingNotebook-update.zip'
+if(Test-Path -LiteralPath $updatePath){Remove-Item -LiteralPath $updatePath -Force}
+$stream=[IO.File]::Open($updatePath,[IO.FileMode]::CreateNew)
+try{$zip=New-Object IO.Compression.ZipArchive($stream,[IO.Compression.ZipArchiveMode]::Create,$false);try{foreach($name in @($sourceFiles)+@('HandwritingNotebook.exe','HandwritingNotebookBackend.exe')){[void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,(Join-Path $StagePath $name),$name,[IO.Compression.CompressionLevel]::Optimal)}}finally{$zip.Dispose()}}finally{$stream.Dispose()}
 Get-Item -LiteralPath $InstallerPath | Select-Object FullName,Length
