@@ -9,6 +9,15 @@ const sessionPath=path.join(__dirname,'.notebook-session.json');
 let browser;
 const edge = [process.env['PROGRAMFILES(X86)'],process.env.PROGRAMFILES,process.env.LOCALAPPDATA].filter(Boolean).map(root=>path.join(root,'Microsoft','Edge','Application','msedge.exe')).find(fs.existsSync)||'msedge.exe';
 let pinned = false;
+let startupRelease={phase:'checking'};
+function newerRelease(remote,current){const parse=v=>/^v?\d+\.\d+\.\d+$/.test(v)?v.replace(/^v/,'').split('.').map(Number):null,a=parse(remote),b=parse(current);if(!a||!b)return false;for(let i=0;i<3;i++){if(a[i]!==b[i])return a[i]>b[i]}return false}
+async function checkStartupRelease(){
+ try{const response=await fetch('https://api.github.com/repos/Soul1380/notebook/releases/latest',{headers:{'User-Agent':'HandwritingNotebook','Accept':'application/vnd.github+json'},signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('GitHub 返回 '+response.status);const release=await response.json(),current=JSON.parse(fs.readFileSync(path.join(__dirname,'version.json'),'utf8')).version;
+ if(!release.draft&&!release.prerelease&&newerRelease(release.tag_name,current)){startupRelease={phase:'available',current,version:release.tag_name,notes:typeof release.body==='string'?release.body.slice(0,30000):'',title:release.name||release.tag_name}}
+ else startupRelease={phase:'current',current};
+ }catch(e){startupRelease={phase:'error',message:'启动检查更新失败，可在首选项中手动检查'};try{const dir=path.join(__dirname,'.update-cache');fs.mkdirSync(dir,{recursive:true});fs.appendFileSync(path.join(dir,'startup-check.log'),new Date().toISOString()+' '+e.message+'\n')}catch(logError){}}
+}
+checkStartupRelease();
 const server = http.createServer((req, res) => {
   if (req.method === 'GET' && new URL(req.url, 'http://localhost').pathname === '/') {
     res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'});
@@ -58,6 +67,7 @@ const server = http.createServer((req, res) => {
     function run(id){const args=['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'tasks.ps1'),activate?'activate':'list'];if(activate)args.push(id);execFile('powershell.exe',args,{windowsHide:true,timeout:12000,maxBuffer:4*1024*1024,encoding:'utf8'},(err,stdout)=>{if(err){res.writeHead(500);res.end();return}try{const data=JSON.parse(stdout);res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data))}catch(e){res.writeHead(500);res.end()}})}
     if(!activate){run();return}let body='';req.on('data',chunk=>{body+=chunk;if(body.length>1024)req.destroy()});req.on('end',()=>{try{const data=JSON.parse(body);if(typeof data.id!=='string'||!/^\d{1,18}$/.test(data.id))throw Error();run(data.id)}catch(e){res.writeHead(400);res.end()}});return;
   }
+  if(req.url==='/startup-release'){if(req.method!=='GET'||req.headers['x-notebook-token']!==token){res.writeHead(403);res.end();return}res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(startupRelease));return}
   if(req.url==='/launch-updater'){
     if(req.method!=='POST'||req.headers['x-notebook-token']!==token||req.headers.origin!==`http://127.0.0.1:${server.address().port}`){res.writeHead(403);res.end();return}
     try{const file=path.join(__dirname,'Updater.exe');if(!fs.existsSync(file))throw Error('未找到更新程序，请重新安装');const child=spawn(file,[],{detached:true,windowsHide:false,stdio:'ignore'});child.once('error',()=>{res.writeHead(500);res.end()});child.once('spawn',()=>{child.unref();res.writeHead(200);res.end('{}')})}catch(e){res.writeHead(500);res.end()};return;

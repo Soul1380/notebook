@@ -70,3 +70,32 @@ for(const id of ['textFont','textSize','textBold','textUnderline']){
  if(id==='textBold'||id==='textUnderline')control.addEventListener('click',()=>{control.setAttribute('aria-pressed',String(control.getAttribute('aria-pressed')!=='true'));applyTextStyle()});
 }
 function applyTextStyle(){if(!selected||selected.type!=='text')return;snapshot();selected.fontFamily=document.querySelector('#textFont').value;selected.fontSize=Math.max(8,Math.min(100,+document.querySelector('#textSize').value||16));selected.bold=document.querySelector('#textBold').getAttribute('aria-pressed')==='true';selected.underline=document.querySelector('#textUnderline').getAttribute('aria-pressed')==='true';persist();draw()}
+// Multi-selection applies to all objects inserted into the canvas.
+let selectedObjects=[];
+function currentSelection(){selectedObjects=selectedObjects.filter(o=>objects.includes(o));if(!selected)selectedObjects=[];else if(!selectedObjects.includes(selected))selectedObjects=[selected];return selectedObjects}
+function setObjectSelection(items){selectedObjects=[...new Set(items)].filter(o=>objects.includes(o));selected=selectedObjects.at(-1)||null;draw()}
+function selectAllObjects(){if(editor)finishText();selectTool('select');setObjectSelection(objects)}
+function objectsInSelectionBox(a,b){const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),right=Math.max(a.x,b.x),bottom=Math.max(a.y,b.y);return objects.filter(o=>o.x>=x&&o.y>=y&&o.x+o.w<=right&&o.y+o.h<=bottom)}
+const drawSingleSelection=draw;
+draw=function(){drawSingleSelection();const items=currentSelection();ctx.save();const d=window.devicePixelRatio||1;ctx.setTransform(d,0,0,d,0,0);ctx.translate(view.x,view.y);ctx.scale(view.scale,view.scale);ctx.strokeStyle='#638e74';ctx.lineWidth=1/view.scale;ctx.setLineDash([5/view.scale,4/view.scale]);for(const o of items)ctx.strokeRect(o.x,o.y,o.w,o.h);if(action?.mode==='multiBox'){const a=action.point,b=action.last||a;ctx.fillStyle='rgba(99,142,116,.12)';ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}ctx.restore()};
+canvas.addEventListener('pointerdown',e=>{
+ if(tool!=='select'||e.button!==0||action||editor)return;
+ e.preventDefault();e.stopImmediatePropagation();canvas.setPointerCapture(e.pointerId);const p=point(e),o=hit(p),items=[...currentSelection()];
+ if(e.ctrlKey&&o){setObjectSelection(items.includes(o)?items.filter(item=>item!==o):[...items,o]);return}
+ if(o){
+  // Preserve the existing single-object resize gesture at the lower right corner.
+  if(items.length<=1&&selected===o&&Math.hypot(p.x-o.x-o.w,p.y-o.y-o.h)<14/view.scale){action={mode:'resize',pointerId:e.pointerId,point:p,object:o,original:{x:o.x,y:o.y,w:o.w,h:o.h}};snapshot();return}
+  if(!items.includes(o))setObjectSelection([o]);
+  action={mode:'multiMove',pointerId:e.pointerId,point:p,originals:currentSelection().map(item=>({object:item,x:item.x,y:item.y})),moved:false};
+ }else{action={mode:'multiBox',pointerId:e.pointerId,point:p,last:p,base:e.ctrlKey?items:[]};if(!e.ctrlKey)setObjectSelection([])}
+},true);
+canvas.addEventListener('pointermove',e=>{
+ if(!action||e.pointerId!==action.pointerId||!['multiBox','multiMove'].includes(action.mode))return;
+ e.preventDefault();e.stopImmediatePropagation();const p=point(e);
+ if(action.mode==='multiBox'){action.last=p;const found=objectsInSelectionBox(action.point,p);setObjectSelection([...action.base,...found])}
+ else{const dx=p.x-action.point.x,dy=p.y-action.point.y;if(!action.moved&&Math.hypot(dx,dy)*view.scale>3){snapshot();action.moved=true}if(action.moved)for(const item of action.originals){item.object.x=item.x+dx;item.object.y=item.y+dy}draw()}
+},true);
+function endMultiSelection(e){if(!action||e.pointerId!==action.pointerId||!['multiBox','multiMove'].includes(action.mode))return;e.stopImmediatePropagation();if(action.mode==='multiMove'&&action.moved)persist();action=null;draw()}
+canvas.addEventListener('pointerup',endMultiSelection,true);canvas.addEventListener('pointercancel',endMultiSelection,true);
+document.querySelector('#deleteObject').onclick=()=>{const items=currentSelection();if(!items.length)return;snapshot();objects=objects.filter(o=>!items.includes(o));selectedObjects=[];selected=null;persist();draw()};
+document.querySelector('#selectAllObjects').onclick=selectAllObjects;

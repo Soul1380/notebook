@@ -84,3 +84,5 @@ select, option, button, .status, .shortcut-hud { user-select:none; -webkit-user-
 /* Dialogs are top-layer elements: enforce the UI selection policy explicitly. */
 .settings-dialog, .settings-dialog *, .picker-dialog, .picker-dialog * { user-select:none; -webkit-user-select:none; }
 .settings-dialog input:not([type=range]):not([type=checkbox]):not([type=radio]), .settings-dialog textarea, .settings-dialog [contenteditable="true"], .picker-dialog input:not([type=range]):not([type=checkbox]):not([type=radio]) { user-select:text; -webkit-user-select:text; }
+
+.startup-update-dialog{width:min(580px,90vw);color:inherit;user-select:none}.release-notes{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;max-height:45vh;overflow:auto;background:#f2f4ef;padding:14px;border-radius:8px}.update-prompt-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:18px}.update-prompt-actions button{cursor:pointer;padding:9px 16px;border-radius:8px;border:0}body[data-ui-theme=dark] .startup-update-dialog{background:#29372e;color:#eef3ee}body[data-ui-theme=dark] .release-notes{background:#1e2822}

@@ -68,3 +68,22 @@ document.addEventListener('keydown',e=>{
 });
 
 document.querySelector('#launchUpdater').onclick=async()=>{const status=document.querySelector('#updaterStatus');try{const r=await fetch('/launch-updater',{method:'POST',headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});if(!r.ok)throw Error();status.textContent='更新程序已打开'}catch(e){status.textContent='无法启动更新程序，请使用安装版'}};
+
+async function promptStartupUpdate(){
+ if(location.protocol==='file:')return;
+ try{
+  let release;
+  for(let attempt=0;attempt<20;attempt++){const r=await fetch('/startup-release',{headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});if(!r.ok)return;release=await r.json();if(release.phase!=='checking')break;await new Promise(resolve=>setTimeout(resolve,1000))}
+  if(release?.phase!=='available')return;
+  const dialog=document.createElement('dialog');dialog.className='startup-update-dialog';
+  const title=document.createElement('h2');title.textContent='发现新版本 '+release.version;
+  const current=document.createElement('p');current.textContent='当前版本：'+release.current+'，是否更新？';
+  const notes=document.createElement('pre');notes.className='release-notes';notes.textContent=release.notes||'此版本未提供更新说明。';
+  const actions=document.createElement('div');actions.className='update-prompt-actions';
+  const later=document.createElement('button');later.type='button';later.textContent='稍后';later.onclick=()=>dialog.close();
+  const update=document.createElement('button');update.type='button';update.textContent='立即更新';update.className='save';
+  update.onclick=async()=>{update.disabled=true;try{const r=await fetch('/launch-updater',{method:'POST',headers:{'X-Notebook-Token':new URLSearchParams(location.search).get('token')}});if(!r.ok)throw Error();dialog.close()}catch(e){current.textContent='无法启动更新器，请在首选项中重试。';update.disabled=false}};
+  actions.append(later,update);dialog.append(title,current,notes,actions);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
+ }catch(e){}
+}
+promptStartupUpdate();
