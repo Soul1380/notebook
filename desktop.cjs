@@ -30,7 +30,7 @@ const server = http.createServer((req, res) => {
     if(req.headers['x-notebook-token']!==token||(opening&&(req.method!=='POST'||req.headers.origin!==`http://127.0.0.1:${server.address().port}`))||(!opening&&req.method!=='GET')){res.writeHead(403);res.end();return}
     try{
       const dir=path.join(__dirname,'plugins');fs.mkdirSync(dir,{recursive:true});
-      if(opening){const child=spawn('explorer.exe',[dir],{detached:true,windowsHide:true,stdio:'ignore'});child.on('error',()=>{});child.unref();res.writeHead(200);res.end('{}');return}
+      if(opening){const child=spawn(path.join(process.env.SystemRoot||'C:\\Windows','explorer.exe'),[dir],{detached:true,windowsHide:false,stdio:'ignore'});child.once('error',err=>{res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({message:'无法打开插件目录：'+err.message,path:dir}))});child.once('spawn',()=>{child.unref();res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({path:dir}))});return}
       const plugins=[];
       for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
         if(!entry.isDirectory()||entry.isSymbolicLink()||!/^[-\w.]{1,80}$/.test(entry.name))continue;
@@ -42,6 +42,9 @@ const server = http.createServer((req, res) => {
           const item={id:entry.name,name:data.name.slice(0,100),version:data.version.slice(0,40),author:data.author.slice(0,100),description:data.description.slice(0,500),type:data.type,config:data.config||{}};
           if(data.type==='font'&&typeof item.config.file==='string'&&/^[\w.-]+\.(woff2?|ttf|otf)$/i.test(item.config.file)){
             const f=path.join(base,item.config.file);if(!fs.lstatSync(f).isSymbolicLink()&&fs.statSync(f).size<=10*1024*1024)item.fontData=fs.readFileSync(f).toString('base64');
+          }
+          if(typeof data.icon==='string'&&/^[\w.-]+\.(png|jpe?g|webp|gif)$/i.test(data.icon)){
+            try{const file=path.join(base,data.icon),stat=fs.lstatSync(file);if(stat.isFile()&&!stat.isSymbolicLink()&&stat.size<=512*1024){const ext=path.extname(file).slice(1).toLowerCase(),mime=ext==='jpg'?'jpeg':ext;item.icon='data:image/'+mime+';base64,'+fs.readFileSync(file).toString('base64')}}catch(e){}
           }
           plugins.push(item);
         }catch(e){}

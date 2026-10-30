@@ -21,7 +21,7 @@ $launcher=Join-Path $StagePath 'HandwritingNotebook.exe'
 if($LASTEXITCODE -ne 0){throw 'Launcher compilation failed'}
 & $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll "/win32icon:$icon" "/out:$(Join-Path $StagePath 'Uninstall.exe')" (Join-Path $PSScriptRoot 'Uninstall.cs')
 if($LASTEXITCODE -ne 0){throw 'Uninstaller compilation failed'}
-& $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll "/win32icon:$icon" "/out:$(Join-Path $StagePath 'Updater.exe')" (Join-Path $PSScriptRoot 'Updater.cs')
+& $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Management.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll "/win32icon:$icon" "/out:$(Join-Path $StagePath 'Updater.exe')" (Join-Path $PSScriptRoot 'Updater.cs')
 if($LASTEXITCODE -ne 0){throw 'Updater compilation failed'}
 # Embed the uninstaller in an existing script so versions with the old update allowlist can upgrade.
 $uninstallBytes=[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $StagePath 'Uninstall.exe')))

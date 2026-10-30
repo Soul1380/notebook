@@ -1,0 +1,1 @@
+每个插件放入独立子文件夹，并提供 manifest.json。可选 icon 字段指定同目录 PNG、JPG、WebP 或 GIF 图标（不超过 512 KB）；未提供或无效时显示默认扩展图标。
